@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="hy">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Auto Service — Chat</title>
+<style>
+:root{--bg:#e9ebec;--panel:#fff;--ink:#1d2529;--mute:#5d6a71;--line:#cfd5d8;--acc:#1f5fbf;--accink:#fff;--me:#1d2529;--meink:#fff}
+@media(prefers-color-scheme:dark){:root{--bg:#171c1f;--panel:#222a2e;--ink:#eef1f2;--mute:#9aa7ad;--line:#38434a;--acc:#5b9bff;--accink:#0b1a30;--me:#5b9bff;--meink:#0b1a30}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Noto Sans Armenian","Segoe UI",system-ui,sans-serif;display:flex;flex-direction:column;height:100vh}
+header{padding:14px 18px;border-bottom:1px solid var(--line);background:var(--panel);display:flex;justify-content:space-between;align-items:center}
+header b{border-left:6px solid #f2b705;padding-left:10px}#mode{font-size:12px;color:var(--mute)}
+#log{flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:10px;max-width:760px;width:100%;margin:0 auto}
+.m{padding:10px 14px;border-radius:10px;max-width:85%;white-space:pre-wrap}
+.bot{background:var(--panel);border:1px solid var(--line);align-self:flex-start}
+.me{background:var(--me);color:var(--meink);align-self:flex-end}
+.hint{display:flex;gap:8px;flex-wrap:wrap;padding:0 18px 8px;max-width:760px;width:100%;margin:0 auto}
+.hint button{font:inherit;font-size:13px;cursor:pointer;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:16px;padding:4px 12px}
+.bar{display:flex;gap:8px;padding:12px 18px;border-top:1px solid var(--line);background:var(--panel)}
+.bar div{display:flex;gap:8px;max-width:724px;width:100%;margin:0 auto}
+input{flex:1;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+#send{font:inherit;cursor:pointer;background:var(--acc);color:var(--accink);border:0;border-radius:8px;padding:0 18px;font-weight:600}
+#send:disabled{opacity:.5;cursor:default}
+#reqBtn{font:inherit;font-size:13px;cursor:pointer;background:transparent;color:var(--ink);border:1px solid var(--line);border-radius:16px;padding:4px 12px}
+dialog{border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);padding:18px;width:min(92vw,400px)}
+dialog::backdrop{background:rgba(0,0,0,.45)}dialog h3{margin:0 0 12px}
+dialog label{display:block;font-size:13px;color:var(--mute);margin-top:10px}
+dialog input,dialog select,dialog textarea{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.dlgbtn{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+.dlgbtn button{font:inherit;cursor:pointer;border-radius:8px;padding:8px 16px;border:1px solid var(--line);background:transparent;color:var(--ink)}
+.dlgbtn .ok{background:var(--acc);color:var(--accink);border:0;font-weight:600}
+#rerr{color:#c0392b;font-size:13px;margin-top:8px}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+</style>
+</head>
+<body>
+<header><b>AI Auto Service</b><span><span id="mode"></span> <button id="reqBtn">Թողնել հայտ</button></span></header>
+<div id="log"></div>
+<div class="hint" id="hint"></div>
+<div class="bar"><div><input id="in" placeholder="Նկարագրեք մեքենայի խնդիրը…" autocomplete="off"><button id="send">Ուղարկել</button></div></div>
+<dialog id="dlg"><h3>Թողնել հայտ</h3>
+<label>Անուն<input id="rn" maxlength="100"></label>
+<label>Հեռախոս<input id="rp" type="tel" maxlength="25" placeholder="+374 ..."></label>
+<label>Գարաժ (ցանկության դեպքում)<select id="rg"><option value="">— ընտրված չէ —</option></select></label>
+<label>Ծառայություն (ցանկության դեպքում)<select id="rs"><option value="">— ընտրված չէ —</option></select></label>
+<label>Նշում<textarea id="rm" rows="2" maxlength="500" placeholder="Օր.՝ ցանկալի ժամը, մեքենայի մակնիշը"></textarea></label>
+<div id="rerr"></div>
+<div class="dlgbtn"><button id="rcancel">Փակել</button><button class="ok" id="rsend">Ուղարկել</button></div></dialog>
+<script>
+const log=document.getElementById("log"),inp=document.getElementById("in"),btn=document.getElementById("send"),modeEl=document.getElementById("mode");
+const history=[];
+function add(text,cls){const d=document.createElement("div");d.className="m "+cls;d.textContent=text;log.appendChild(d);log.scrollTop=log.scrollHeight;return d}
+async function send(text){
+  text=(text||inp.value).trim();if(!text||btn.disabled)return;
+  inp.value="";document.getElementById("hint").style.display="none";
+  add(text,"me");history.push({role:"user",content:text});
+  btn.disabled=true;const wait=add("…","bot");
+  try{
+    const r=await fetch("/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:history})});
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    const d=await r.json();wait.textContent=d.reply;history.push({role:"assistant",content:d.reply});
+    modeEl.textContent=d.mode==="ai"?"AI ռեժիմ":"Պարզ ռեժիմ (առանց AI)";
+  }catch(e){wait.textContent="Սխալ՝ սերվերը չպատասխանեց։ Ստուգեք, որ uvicorn-ը աշխատում է։";history.pop()}
+  btn.disabled=false;inp.focus();log.scrollTop=log.scrollHeight;
+}
+add("Բարև։ Նկարագրեք մեքենայի խնդիրը, և ես կգտնեմ համապատասխան ծառայությունը ու գարաժը։","bot");
+["Արգելակելիս ճռռոց է լսվում","Օդորակիչը չի սառեցնում","Ո՞ր գարաժն է հիմա բաց"].forEach(t=>{const b=document.createElement("button");b.textContent=t;b.onclick=()=>send(t);document.getElementById("hint").appendChild(b)});
+btn.onclick=()=>send();inp.addEventListener("keydown",e=>{if(e.key==="Enter")send()});
+
+const dlg=document.getElementById("dlg"),$$=id=>document.getElementById(id);
+$$("reqBtn").onclick=async()=>{
+  $$("rerr").textContent="";
+  if($$("rg").options.length<2){
+    try{
+      const [g,s]=await Promise.all([fetch("/garages").then(r=>r.json()),fetch("/services").then(r=>r.json())]);
+      g.forEach(x=>$$("rg").add(new Option(x.name,x.id)));s.forEach(x=>$$("rs").add(new Option(x.name,x.id)));
+    }catch(e){}
+  }
+  dlg.showModal();
+};
+$$("rcancel").onclick=()=>dlg.close();
+$$("rsend").onclick=async()=>{
+  const body={name:$$("rn").value.trim(),phone:$$("rp").value.trim(),message:$$("rm").value.trim(),
+    garage_id:$$("rg").value?+$$("rg").value:null,service_id:$$("rs").value?+$$("rs").value:null};
+  if(!body.name||body.phone.length<6){$$("rerr").textContent="Լրացրեք անունը և հեռախոսը։";return}
+  try{
+    const r=await fetch("/requests",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    if(r.status===429){$$("rerr").textContent="Չափազանց շատ հայտեր, փորձեք ավելի ուշ։";return}
+    if(!r.ok){$$("rerr").textContent="Ստուգեք հեռախոսի համարը (թվեր, +, -, փակագծեր)։";return}
+    dlg.close();["rn","rp","rm"].forEach(i=>$$(i).value="");
+    add("Հայտը ուղարկված է։ Գարաժը կկապվի ձեզ հետ։","bot");
+  }catch(e){$$("rerr").textContent="Սերվերը չպատասխանեց։"}
+};
+</script>
+</body>
+</html>

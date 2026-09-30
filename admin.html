@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="hy">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Auto Service — Ադմին</title>
+<style>
+:root{--bg:#e9ebec;--panel:#fff;--ink:#1d2529;--mute:#5d6a71;--line:#cfd5d8;--acc:#1f5fbf;--accink:#fff;--bad:#c0392b;--ok:#1b7a4b}
+@media(prefers-color-scheme:dark){:root{--bg:#171c1f;--panel:#222a2e;--ink:#eef1f2;--mute:#9aa7ad;--line:#38434a;--acc:#5b9bff;--accink:#0b1a30;--bad:#ff7b6b;--ok:#4cc58a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Noto Sans Armenian","Segoe UI",system-ui,sans-serif}
+.hide{display:none!important}
+header{display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding:12px 20px;background:var(--ink);color:var(--bg)}
+header b{border-left:6px solid #f2b705;padding-left:10px;margin-right:8px}
+header nav{display:flex;gap:4px;flex:1;flex-wrap:wrap}
+header button{font:inherit;cursor:pointer;color:inherit;background:transparent;border:0;padding:6px 12px;border-radius:6px;opacity:.75}
+header button.on{background:#f2b705;color:#1d2529;opacity:1;font-weight:600}
+main{padding:20px;max-width:980px;margin:0 auto}
+h2{margin:0 0 4px;font-size:20px}.sub{color:var(--mute);margin:0 0 16px}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:16px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+input,select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;min-width:0}
+input[type=number]{width:110px}input[type=time]{width:140px}input[type=checkbox]{width:18px;height:18px}
+.btn{font:inherit;cursor:pointer;background:var(--acc);color:var(--accink);border:0;border-radius:6px;padding:8px 14px;font-weight:600}
+.btn.g{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn.danger{background:var(--bad);color:#fff;border-color:var(--bad)}
+.tbl{overflow-x:auto}table{border-collapse:collapse;width:100%}
+th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);vertical-align:middle}th{color:var(--mute);font-size:13px;font-weight:600}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.chip{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:20px;padding:6px 14px}
+.chip.on{background:var(--acc);color:var(--accink);border-color:var(--acc)}
+.badge{font-size:12px;padding:2px 10px;border-radius:10px;background:#f2b705;color:#1d2529}.badge.done{background:var(--line);color:var(--mute)}
+.note{font-size:13px;color:var(--mute)}
+@media(max-width:700px){header{padding:10px 14px}header nav{order:3;flex:1 1 100%}main{padding:14px}}
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:8px;opacity:0;pointer-events:none;transition:opacity .2s}
+#toast.show{opacity:1}#toast.err{background:var(--bad);color:#fff}
+#login{max-width:340px;margin:12vh auto;padding:0 20px}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+</style>
+</head>
+<body>
+<div id="login" class="hide">
+  <div class="box"><h2>Ադմին պանել</h2><p class="sub">Մուտքագրեք գաղտնաբառը։</p>
+  <div class="row"><input id="pw" type="password" placeholder="Գաղտնաբառ" autocomplete="current-password" style="flex:1"><button class="btn" id="go">Մուտք</button></div></div>
+</div>
+<div id="app" class="hide">
+  <header><b>AI Auto Service</b>
+    <nav id="tabs"><button data-t="requests">Հայտեր</button><button data-t="garages">Գարաժներ</button><button data-t="catalog">Կատալոգ</button></nav>
+    <button id="out">Դուրս գալ</button></header>
+  <main id="main"></main>
+</div>
+<div id="toast" role="status"></div>
+<script>
+const DAYS=["Երկուշաբթի","Երեքշաբթի","Չորեքշաբթի","Հինգշաբթի","Ուրբաթ","Շաբաթ","Կիրակի"];
+let token=sessionStorage.getItem("tok")||"",D=null,tab="requests",gsel=null;
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let tt;function toast(m,err){const t=$("#toast");t.textContent=m;t.className="show"+(err?" err":"");clearTimeout(tt);tt=setTimeout(()=>t.className="",2600)}
+
+async function api(method,path,body,auth=true){
+  const r=await fetch("/admin"+path,{method,headers:{"Content-Type":"application/json",...(auth?{Authorization:"Bearer "+token}:{})},body:body?JSON.stringify(body):undefined});
+  if(r.status===401&&auth){logout();throw new Error("auth")}
+  if(!r.ok){let m="Սխալ "+r.status;try{const j=await r.json();m=typeof j.detail==="string"?j.detail:"Անվավեր տվյալներ"}catch(e){}toast(m,true);throw new Error(m)}
+  return r.json();
+}
+async function refresh(){D=await api("GET","/data")}
+function armed(btn,label){ // ջնջման երկքայլ հաստատում
+  if(btn.dataset.arm)return true;
+  btn.dataset.arm=1;btn.textContent="Հաստատել ջնջումը";btn.classList.add("danger");
+  setTimeout(()=>{if(btn.isConnected){delete btn.dataset.arm;btn.textContent=label;btn.classList.remove("danger")}},4000);return false;
+}
+function logout(){token="";sessionStorage.removeItem("tok");$("#app").classList.add("hide");$("#login").classList.remove("hide");$("#pw").focus()}
+async function login(){
+  try{const d=await api("POST","/login",{password:$("#pw").value},false);token=d.token;sessionStorage.setItem("tok",token);$("#pw").value="";await start()}catch(e){}
+}
+async function start(){$("#login").classList.add("hide");$("#app").classList.remove("hide");await refresh();render()}
+
+function fmtDate(s){return new Date(s.replace(" ","T")+"Z").toLocaleString("hy-AM",{timeZone:"Asia/Yerevan",dateStyle:"short",timeStyle:"short"})}
+function requestsView(){
+  const n=D.requests.filter(r=>r.status==="new").length;
+  return `<h2>Հայտեր</h2><p class="sub">Նոր հայտեր՝ ${n}։ Զանգահարեք վարորդին և նշեք որպես մշակված։</p>
+  <div class="box tbl">${D.requests.length?`<table><tr><th>Ժամանակ</th><th>Անուն</th><th>Հեռախոս</th><th>Գարաժ / ծառայություն</th><th>Նշում</th><th></th></tr>
+  ${D.requests.map(r=>`<tr><td>${fmtDate(r.created_at)}</td><td>${esc(r.name)}</td><td><a href="tel:${esc(r.phone)}">${esc(r.phone)}</a></td>
+  <td>${esc(r.garage||"—")}<div class="note">${esc(r.service||"")}</div></td><td>${esc(r.message)}</td>
+  <td><button class="btn ${r.status==="new"?"":"g"}" data-req="${r.id}" data-to="${r.status==="new"?"done":"new"}">${r.status==="new"?"Մշակված է":"Վերաբացել"}</button></td></tr>`).join("")}</table>`:`<span class="note">Հայտեր դեռ չկան։</span>`}</div>`;
+}
+function garagesView(){
+  let g=D.garages.find(x=>x.id===gsel)||D.garages[0];gsel=g?.id;
+  let h=`<h2>Գարաժներ</h2><p class="sub">Գները պահպանվում են փոփոխելուն պես։ Ժամերը՝ «Պահպանել ժամերը» կոճակով։</p>
+  <div class="chips">${D.garages.map(x=>`<button class="chip ${x.id===gsel?"on":""}" data-g="${x.id}">${esc(x.name)}</button>`).join("")}<button class="chip" id="addG">+ Նոր գարաժ</button></div>`;
+  if(!g)return h+`<div class="box">Դեռ գարաժ չկա։ Սեղմեք «+ Նոր գարաժ»։</div>`;
+  h+=`<div class="box"><div class="row"><input id="gn" value="${esc(g.name)}" placeholder="Անվանում" aria-label="Անվանում"><input id="ga" value="${esc(g.address)}" placeholder="Հասցե" aria-label="Հասցե"><input id="gp" value="${esc(g.phone)}" placeholder="Հեռախոս" aria-label="Հեռախոս">
+  <button class="btn" id="saveG">Պահպանել</button><button class="btn g" id="delG">Ջնջել գարաժը</button></div></div>
+  <div class="box tbl"><b>Ծառայություններ և գներ</b><table><tr><th>Ծառայություն</th><th>Առաջարկում է</th><th>Գին (֏)</th><th>Տևողություն (ր)</th></tr>
+  ${D.services.map(s=>{const o=g.services.find(x=>x.service_id===s.id);return `<tr><td>${esc(s.name)}<div class="note">${esc(s.category)}</div></td>
+  <td><input type="checkbox" data-on="${s.id}" ${o?"checked":""} aria-label="Առաջարկում է"></td>
+  <td><input type="number" min="0" step="500" data-price="${s.id}" value="${o?o.price:""}" ${o?"":"disabled"}></td>
+  <td><input type="number" min="5" step="5" data-dur="${s.id}" value="${o?o.duration_min:60}" ${o?"":"disabled"}></td></tr>`}).join("")}</table></div>
+  <div class="box tbl"><b>Աշխատանքային ժամեր</b><table><tr><th>Օր</th><th>Բաց է</th><th>Բացում</th><th>Փակում</th></tr>
+  ${DAYS.map((n,i)=>{const w=g.hours.find(x=>x.weekday===i);return `<tr><td>${n}</td><td><input type="checkbox" data-ho="${i}" ${w?"checked":""}></td><td><input type="time" data-hf="${i}" value="${w?w.open:"09:00"}"></td><td><input type="time" data-ht="${i}" value="${w?w.close:"18:00"}"></td></tr>`}).join("")}</table>
+  <div style="margin-top:12px"><button class="btn" id="saveH">Պահպանել ժամերը</button></div></div>`;
+  return h;
+}
+function catalogView(){
+  return `<h2>Ծառայությունների կատալոգ</h2><p class="sub">Բանալի բառերը (ստորակետով) օգնում են chat-ի պարզ ռեժիմին հասկանալ խնդիրը։</p>
+  <div class="box tbl"><table><tr><th>Անվանում</th><th>Կատեգորիա</th><th>Բանալի բառեր</th><th></th></tr>
+  ${D.services.map(s=>`<tr data-sid="${s.id}"><td><input data-f="n" value="${esc(s.name)}" style="width:100%"></td><td><input data-f="c" value="${esc(s.category)}"></td><td><input data-f="k" value="${esc(s.keywords.join(", "))}" style="width:100%"></td>
+  <td style="white-space:nowrap"><button class="btn" data-savs="${s.id}">Պահպանել</button> <button class="btn g" data-dels="${s.id}">Ջնջել</button></td></tr>`).join("")}</table></div>
+  <div class="box"><b>Նոր ծառայություն</b><div class="row" style="margin-top:10px"><input id="cn" placeholder="Անվանում"><input id="cc" placeholder="Կատեգորիա"><input id="ck" placeholder="Բանալի բառեր"><button class="btn" id="addC">Ավելացնել</button></div></div>`;
+}
+function render(){
+  document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.t===tab));
+  $("#main").innerHTML=tab==="requests"?requestsView():tab==="garages"?garagesView():catalogView();
+}
+const kw=s=>s.split(",").map(x=>x.trim()).filter(Boolean);
+const curG=()=>D.garages.find(x=>x.id===gsel);
+
+$("#tabs").onclick=e=>{if(e.target.dataset.t){tab=e.target.dataset.t;render()}};
+$("#out").onclick=logout;$("#go").onclick=login;$("#pw").addEventListener("keydown",e=>{if(e.key==="Enter")login()});
+
+$("#main").onclick=async e=>{
+  const t=e.target,d=t.dataset;
+  try{
+    if(d.req){await api("PATCH","/requests/"+d.req,{status:d.to});await refresh();render()}
+    else if(d.g){gsel=+d.g;render()}
+    else if(t.id==="addG"){const r=await api("POST","/garages",{name:"Նոր գարաժ"});await refresh();gsel=r.id;render();toast("Գարաժը ավելացվեց")}
+    else if(t.id==="saveG"){await api("PUT","/garages/"+gsel,{name:$("#gn").value.trim()||"Անանուն",address:$("#ga").value,phone:$("#gp").value});await refresh();render();toast("Պահպանվեց")}
+    else if(t.id==="delG"){if(armed(t,"Ջնջել գարաժը")){await api("DELETE","/garages/"+gsel);gsel=null;await refresh();render();toast("Գարաժը ջնջվեց")}}
+    else if(t.id==="saveH"){
+      const days=[];for(let i=0;i<7;i++)if(document.querySelector(`[data-ho="${i}"]`).checked)days.push({weekday:i,open:document.querySelector(`[data-hf="${i}"]`).value,close:document.querySelector(`[data-ht="${i}"]`).value});
+      await api("PUT",`/garages/${gsel}/hours`,{days});await refresh();toast("Ժամերը պահպանվեցին")}
+    else if(t.id==="addC"){const n=$("#cn").value.trim();if(!n){$("#cn").focus();return}await api("POST","/services",{name:n,category:$("#cc").value.trim()||"Այլ",keywords:kw($("#ck").value)});await refresh();render();toast("Ծառայությունը ավելացվեց")}
+    else if(d.savs){const tr=t.closest("tr");await api("PUT","/services/"+d.savs,{name:tr.querySelector('[data-f=n]').value.trim(),category:tr.querySelector('[data-f=c]').value.trim()||"Այլ",keywords:kw(tr.querySelector('[data-f=k]').value)});await refresh();toast("Պահպանվեց")}
+    else if(d.dels){if(armed(t,"Ջնջել")){await api("DELETE","/services/"+d.dels);await refresh();render();toast("Ծառայությունը ջնջվեց")}}
+  }catch(err){}
+};
+$("#main").onchange=async e=>{
+  const t=e.target,d=t.dataset,g=curG();if(!g)return;
+  try{
+    if(d.on){
+      const p=document.querySelector(`[data-price="${d.on}"]`),u=document.querySelector(`[data-dur="${d.on}"]`);
+      if(t.checked){p.disabled=u.disabled=false;p.focus();toast("Մուտքագրեք գինը")}
+      else{await api("DELETE",`/garages/${g.id}/services/${d.on}`);p.value="";p.disabled=u.disabled=true;await refresh();toast("Ծառայությունը հանվեց")}
+    }else if(d.price||d.dur){
+      const sid=d.price||d.dur,p=document.querySelector(`[data-price="${sid}"]`),u=document.querySelector(`[data-dur="${sid}"]`);
+      if(p.value==="")return;
+      await api("PUT",`/garages/${g.id}/services/${sid}`,{price:+p.value,duration_min:+u.value||60});await refresh();toast("Գինը պահպանվեց");
+    }
+  }catch(err){}
+};
+if(token)start().catch(()=>logout());else logout();
+</script>
+</body>
+</html>

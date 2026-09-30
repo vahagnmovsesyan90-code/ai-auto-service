@@ -1,0 +1,24 @@
+# Render Blueprint. անվճար դեմո (քնում է 15 րոպե անգործությունից հետո, տվյալները չեն պահվում)
+services:
+  - type: web
+    name: ai-auto-service
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn api:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips "*"
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.3
+      - key: APP_ENV
+        value: production
+      - key: SEED_SAMPLE          # 1՝ ամեն սկսելիս նմուշային գարաժներ (դեմոյի համար)
+        value: "1"
+      - key: AUTOSERVICE_DB
+        value: /tmp/autoservice.db
+      - key: AI_DAILY_LIMIT
+        value: "100"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ADMIN_PASSWORD       # Render-ը կհարցնի ստեղծելիս
+        sync: false
