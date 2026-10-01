@@ -40,13 +40,16 @@ th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);vertical-a
 </head>
 <body>
 <div id="login" class="hide">
-  <div class="box"><h2>Ադմին պանել</h2><p class="sub">Մուտքագրեք գաղտնաբառը։</p>
-  <div class="row"><input id="pw" type="password" placeholder="Գաղտնաբառ" autocomplete="current-password" style="flex:1"><button class="btn" id="go">Մուտք</button></div></div>
+  <div class="box"><h2>Մուտք</h2><p class="sub">Գարաժի սեփականատերը մուտքագրում է իր մուտքանունը։ Գլխավոր ադմինը թողնում է այն դատարկ։</p>
+  <div class="row" style="flex-direction:column;align-items:stretch">
+  <input id="lg" placeholder="Մուտքանուն (գլխավոր ադմինի համար՝ դատարկ)" autocomplete="username">
+  <input id="pw" type="password" placeholder="Գաղտնաբառ" autocomplete="current-password">
+  <button class="btn" id="go">Մուտք</button></div></div>
 </div>
 <div id="app" class="hide">
   <header><b>AI Auto Service</b>
-    <nav id="tabs"><button data-t="requests">Հայտեր</button><button data-t="garages">Գարաժներ</button><button data-t="catalog">Կատալոգ</button></nav>
-    <button id="out">Դուրս գալ</button></header>
+    <nav id="tabs"><button data-t="requests">Հայտեր</button><button data-t="garages" id="tabG">Գարաժներ</button><button data-t="catalog" id="tabC">Կատալոգ</button></nav>
+    <span id="who" class="note" style="color:inherit;opacity:.7"></span><button id="out">Դուրս գալ</button></header>
   <main id="main"></main>
 </div>
 <div id="toast" role="status"></div>
@@ -69,28 +72,50 @@ function armed(btn,label){ // ջնջման երկքայլ հաստատում
   btn.dataset.arm=1;btn.textContent="Հաստատել ջնջումը";btn.classList.add("danger");
   setTimeout(()=>{if(btn.isConnected){delete btn.dataset.arm;btn.textContent=label;btn.classList.remove("danger")}},4000);return false;
 }
-function logout(){token="";sessionStorage.removeItem("tok");$("#app").classList.add("hide");$("#login").classList.remove("hide");$("#pw").focus()}
+function logout(){clearInterval(pollT);token="";sessionStorage.removeItem("tok");$("#app").classList.add("hide");$("#login").classList.remove("hide");$("#pw").focus()}
 async function login(){
-  try{const d=await api("POST","/login",{password:$("#pw").value},false);token=d.token;sessionStorage.setItem("tok",token);$("#pw").value="";await start()}catch(e){}
+  try{const d=await api("POST","/login",{login:$("#lg").value.trim(),password:$("#pw").value},false);token=d.token;sessionStorage.setItem("tok",token);$("#pw").value="";await start()}catch(e){}
 }
-async function start(){$("#login").classList.add("hide");$("#app").classList.remove("hide");await refresh();render()}
+const isAdmin=()=>D&&D.role==="admin";
+async function start(){
+  $("#login").classList.add("hide");$("#app").classList.remove("hide");await refresh();
+  tab="requests";gsel=D.garages[0]?.id??null;
+  $("#tabC").classList.toggle("hide",!isAdmin());
+  $("#tabG").textContent=isAdmin()?"Գարաժներ":"Իմ գարաժը";
+  $("#who").textContent=isAdmin()?"Գլխավոր ադմին":(D.garages[0]?.name||"");
+  render();
+}
 
-function fmtDate(s){return new Date(s.replace(" ","T")+"Z").toLocaleString("hy-AM",{timeZone:"Asia/Yerevan",dateStyle:"short",timeStyle:"short"})}
+function fmtDate(s){return new Date(s.replace(" ","T")+"Z").toLocaleString("en-GB",{timeZone:"Asia/Yerevan",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",hour12:false})}
+function tgBox(who,linked){
+  if(!D.telegram.enabled)return `<div class="box"><b>Telegram ծանուցումներ</b><p class="note">Telegram-ը դեռ կարգավորված չէ. գլխավոր ադմինը պետք է ավելացնի TELEGRAM_BOT_TOKEN։</p></div>`;
+  return `<div class="box"><b>Telegram ծանուցումներ</b>
+  <p class="note">${linked?"✓ Միացված է. նոր հայտերը կգան Telegram-ով։":"Միացված չէ. նոր հայտերի մասին կիմանաք միայն այս պանելից։"}</p>
+  <div class="row"><button class="btn" data-tglink="${who}">${linked?"Միացնել այլ Telegram":"Միացնել Telegram"}</button>${linked?`<button class="btn g" data-tgunlink="${who}">Անջատել</button>`:""}</div>
+  <div id="tgInfo-${who}" class="note" style="margin-top:10px"></div></div>`;
+}
 function requestsView(){
-  const n=D.requests.filter(r=>r.status==="new").length;
-  return `<h2>Հայտեր</h2><p class="sub">Նոր հայտեր՝ ${n}։ Զանգահարեք վարորդին և նշեք որպես մշակված։</p>
-  <div class="box tbl">${D.requests.length?`<table><tr><th>Ժամանակ</th><th>Անուն</th><th>Հեռախոս</th><th>Գարաժ / ծառայություն</th><th>Նշում</th><th></th></tr>
+  const n=D.requests.filter(r=>r.status==="new").length,adm=isAdmin();
+  const opts=r=>`<option value="">— նշանակված չէ —</option>`+D.garages.map(g=>`<option value="${g.id}" ${g.id===r.garage_id?"selected":""}>${esc(g.name)}</option>`).join("");
+  return `<h2>Հայտեր</h2><p class="sub">Նոր հայտեր՝ ${n}։ Զանգահարեք վարորդին և նշեք որպես մշակված։${adm?" Առանց գարաժի հայտերը նշանակեք գարաժի։":""}</p>
+  ${adm?tgBox("admin",D.telegram.admin_linked):""}
+  <div class="box tbl">${D.requests.length?`<table><tr><th>Ժամանակ</th><th>Անուն</th><th>Հեռախոս</th><th>${adm?"Գարաժ":"Ծառայություն"}</th><th>Նշում</th><th></th></tr>
   ${D.requests.map(r=>`<tr><td>${fmtDate(r.created_at)}</td><td>${esc(r.name)}</td><td><a href="tel:${esc(r.phone)}">${esc(r.phone)}</a></td>
-  <td>${esc(r.garage||"—")}<div class="note">${esc(r.service||"")}</div></td><td>${esc(r.message)}</td>
+  <td>${adm?`<select data-assign="${r.id}" aria-label="Գարաժ">${opts(r)}</select><div class="note">${esc(r.service||"")}</div>`:esc(r.service||"—")}</td><td>${esc(r.message)}</td>
   <td><button class="btn ${r.status==="new"?"":"g"}" data-req="${r.id}" data-to="${r.status==="new"?"done":"new"}">${r.status==="new"?"Մշակված է":"Վերաբացել"}</button></td></tr>`).join("")}</table>`:`<span class="note">Հայտեր դեռ չկան։</span>`}</div>`;
 }
 function garagesView(){
+  const adm=isAdmin();
   let g=D.garages.find(x=>x.id===gsel)||D.garages[0];gsel=g?.id;
-  let h=`<h2>Գարաժներ</h2><p class="sub">Գները պահպանվում են փոփոխելուն պես։ Ժամերը՝ «Պահպանել ժամերը» կոճակով։</p>
-  <div class="chips">${D.garages.map(x=>`<button class="chip ${x.id===gsel?"on":""}" data-g="${x.id}">${esc(x.name)}</button>`).join("")}<button class="chip" id="addG">+ Նոր գարաժ</button></div>`;
+  let h=adm?`<h2>Գարաժներ</h2><p class="sub">Գները պահպանվում են փոփոխելուն պես։ Ժամերը՝ «Պահպանել ժամերը» կոճակով։</p>
+  <div class="chips">${D.garages.map(x=>`<button class="chip ${x.id===gsel?"on":""}" data-g="${x.id}">${esc(x.name)}</button>`).join("")}<button class="chip" id="addG">+ Նոր գարաժ</button></div>`
+  :`<h2>Իմ գարաժը</h2><p class="sub">Գները պահպանվում են փոփոխելուն պես։ Ժամերը՝ «Պահպանել ժամերը» կոճակով։</p>`;
   if(!g)return h+`<div class="box">Դեռ գարաժ չկա։ Սեղմեք «+ Նոր գարաժ»։</div>`;
   h+=`<div class="box"><div class="row"><input id="gn" value="${esc(g.name)}" placeholder="Անվանում" aria-label="Անվանում"><input id="ga" value="${esc(g.address)}" placeholder="Հասցե" aria-label="Հասցե"><input id="gp" value="${esc(g.phone)}" placeholder="Հեռախոս" aria-label="Հեռախոս">
-  <button class="btn" id="saveG">Պահպանել</button><button class="btn g" id="delG">Ջնջել գարաժը</button></div></div>
+  <button class="btn" id="saveG">Պահպանել</button>${adm?`<button class="btn g" id="delG">Ջնջել գարաժը</button>`:""}</div></div>
+  ${adm?`<div class="box"><b>Գարաժի մուտք</b><p class="note">${g.login?`Մուտքանուն՝ <b>${esc(g.login)}</b>։ `:"Մուտք դեռ չկա։ "}Սեփականատերը մտնում է նույն էջով՝ այս մուտքանունով և գաղտնաբառով, և տեսնում է միայն իր գարաժը և հայտերը։ Գաղտնաբառը հետո չի երևում. մոռանալու դեպքում սահմանեք նորը։</p>
+  <div class="row"><input id="al" placeholder="Մուտքանուն (լատինատառ)" value="${esc(g.login||"")}" autocomplete="off"><input id="ap" type="password" placeholder="Գաղտնաբառ (նվազ. 8 նիշ)" autocomplete="new-password"><button class="btn" id="saveAcc">Պահպանել մուտքը</button>${g.login?`<button class="btn g" id="delAcc">Հանել մուտքը</button>`:""}</div></div>`:""}
+  ${tgBox("garage",g.telegram_linked)}
   <div class="box tbl"><b>Ծառայություններ և գներ</b><table><tr><th>Ծառայություն</th><th>Առաջարկում է</th><th>Գին (֏)</th><th>Տևողություն (ր)</th></tr>
   ${D.services.map(s=>{const o=g.services.find(x=>x.service_id===s.id);return `<tr><td>${esc(s.name)}<div class="note">${esc(s.category)}</div></td>
   <td><input type="checkbox" data-on="${s.id}" ${o?"checked":""} aria-label="Առաջարկում է"></td>
@@ -116,13 +141,25 @@ const kw=s=>s.split(",").map(x=>x.trim()).filter(Boolean);
 const curG=()=>D.garages.find(x=>x.id===gsel);
 
 $("#tabs").onclick=e=>{if(e.target.dataset.t){tab=e.target.dataset.t;render()}};
-$("#out").onclick=logout;$("#go").onclick=login;$("#pw").addEventListener("keydown",e=>{if(e.key==="Enter")login()});
+$("#out").onclick=logout;$("#go").onclick=login;$("#lg").addEventListener("keydown",e=>{if(e.key==="Enter")login()});$("#pw").addEventListener("keydown",e=>{if(e.key==="Enter")login()});
 
 $("#main").onclick=async e=>{
   const t=e.target,d=t.dataset;
   try{
     if(d.req){await api("PATCH","/requests/"+d.req,{status:d.to});await refresh();render()}
     else if(d.g){gsel=+d.g;render()}
+    else if(d.tglink){
+      const r=await api("POST",d.tglink==="admin"?"/telegram/link":`/garages/${gsel}/telegram/link`);
+      const box=$("#tgInfo-"+d.tglink);
+      box.innerHTML=(r.url?`1) <a href="${esc(r.url)}" target="_blank" rel="noopener">Բացել Telegram բոտը</a> և սեղմել <b>Start</b>։<br>`:`1) Բացեք բոտը Telegram-ում և ուղարկեք՝ <b>${esc(r.command)}</b><br>`)+
+        `Եթե հղումը չի աշխատում, բոտին ուղարկեք՝ <b>${esc(r.command)}</b><br>2) Այս էջը ինքն է կթարմացվի (կոդը վավեր է 1 ժամ)։`;
+      watchLink();
+    }
+    else if(d.tgunlink){await api("DELETE",d.tgunlink==="admin"?"/telegram":`/garages/${gsel}/telegram`);await refresh();render();toast("Telegram-ը անջատվեց")}
+    else if(t.id==="saveAcc"){
+      const pw=$("#ap").value;if(!$("#al").value.trim()||!pw){toast("Լրացրեք մուտքանունը և գաղտնաբառը",true);return}
+      await api("PUT",`/garages/${gsel}/account`,{login:$("#al").value.trim(),password:pw});await refresh();render();toast("Մուտքը պահպանվեց")}
+    else if(t.id==="delAcc"){if(armed(t,"Հանել մուտքը")){await api("DELETE",`/garages/${gsel}/account`);await refresh();render();toast("Մուտքը հանվեց")}}
     else if(t.id==="addG"){const r=await api("POST","/garages",{name:"Նոր գարաժ"});await refresh();gsel=r.id;render();toast("Գարաժը ավելացվեց")}
     else if(t.id==="saveG"){await api("PUT","/garages/"+gsel,{name:$("#gn").value.trim()||"Անանուն",address:$("#ga").value,phone:$("#gp").value});await refresh();render();toast("Պահպանվեց")}
     else if(t.id==="delG"){if(armed(t,"Ջնջել գարաժը")){await api("DELETE","/garages/"+gsel);gsel=null;await refresh();render();toast("Գարաժը ջնջվեց")}}
@@ -135,7 +172,9 @@ $("#main").onclick=async e=>{
   }catch(err){}
 };
 $("#main").onchange=async e=>{
-  const t=e.target,d=t.dataset,g=curG();if(!g)return;
+  const t=e.target,d=t.dataset,g=curG();
+  if(d.assign){try{await api("PUT",`/requests/${d.assign}/garage`,{garage_id:t.value?+t.value:null});await refresh();toast(t.value?"Հայտը նշանակվեց գարաժին":"Նշանակումը հանվեց")}catch(err){}return}
+  if(!g)return;
   try{
     if(d.on){
       const p=document.querySelector(`[data-price="${d.on}"]`),u=document.querySelector(`[data-dur="${d.on}"]`);
@@ -148,6 +187,12 @@ $("#main").onchange=async e=>{
     }
   }catch(err){}
 };
+let pollT;
+function watchLink(){ // Telegram-ի կապի կարգավիճակի թարմացում, մինչև միանա
+  clearInterval(pollT);let n=0;const snap=()=>D.telegram.admin_linked+"|"+D.garages.map(g=>g.telegram_linked).join();const was=snap();
+  pollT=setInterval(async()=>{n++;try{await refresh()}catch(e){clearInterval(pollT);return}
+    if(snap()!==was){clearInterval(pollT);render();toast("Telegram-ը միացավ ✓")}else if(n>=40)clearInterval(pollT)},3000);
+}
 if(token)start().catch(()=>logout());else logout();
 </script>
 </body>

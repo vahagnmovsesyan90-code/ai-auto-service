@@ -24,8 +24,18 @@ CREATE TABLE IF NOT EXISTS garages (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
     address TEXT NOT NULL,
-    phone TEXT NOT NULL
+    phone TEXT NOT NULL,
+    login TEXT,                                 -- գարաժի սեփականատիրոջ մուտքանունը (փոքրատառ)
+    password_hash TEXT,
+    telegram_chat_id INTEGER
 );
+CREATE TABLE IF NOT EXISTS link_codes (          -- Telegram կապի մեկանգամյա կոդեր (վավեր 1 ժամ)
+    code TEXT PRIMARY KEY,
+    kind TEXT NOT NULL CHECK (kind IN ('garage','admin')),
+    garage_id INTEGER REFERENCES garages(id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS garage_services (
     garage_id INTEGER NOT NULL REFERENCES garages(id) ON DELETE CASCADE,
     service_id INTEGER NOT NULL REFERENCES services(id) ON DELETE CASCADE,
@@ -55,6 +65,16 @@ CREATE TABLE IF NOT EXISTS working_hours (      -- միայն բաց օրերը
 _ready: set[str] = set()
 
 
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Հին բազաներին ավելացնում է նոր սյուները (Փուլ 5-ի բազան չի կորչում)։"""
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(garages)")}
+    for name, decl in (("login", "TEXT"), ("password_hash", "TEXT"), ("telegram_chat_id", "INTEGER")):
+        if name not in cols:
+            conn.execute(f"ALTER TABLE garages ADD COLUMN {name} {decl}")
+    conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_garages_login ON garages(login) WHERE login IS NOT NULL")
+    conn.commit()
+
+
 def connect() -> sqlite3.Connection:
     """Բացում է կապը. առաջին անգամ ստեղծում է աղյուսակները և լցնում նմուշային տվյալները։"""
     conn = sqlite3.connect(DB_PATH)
@@ -62,6 +82,7 @@ def connect() -> sqlite3.Connection:
     conn.execute("PRAGMA foreign_keys = ON")
     if str(DB_PATH) not in _ready:
         conn.executescript(SCHEMA)
+        _migrate(conn)
         if (os.getenv("SEED_SAMPLE", "1") == "1"
                 and conn.execute("SELECT COUNT(*) FROM services").fetchone()[0] == 0):
             seed(conn)
@@ -75,7 +96,7 @@ def seed(conn: sqlite3.Connection) -> None:
             conn.execute("INSERT INTO services VALUES (?,?,?,?)",
                          (s.id, s.name, s.category, ",".join(s.keywords)))
         for g in GARAGES:
-            conn.execute("INSERT INTO garages VALUES (?,?,?,?)", (g.id, g.name, g.address, g.phone))
+            conn.execute("INSERT INTO garages(id,name,address,phone) VALUES (?,?,?,?)", (g.id, g.name, g.address, g.phone))
             for day, (o, c) in g.hours.items():
                 conn.execute("INSERT INTO working_hours VALUES (?,?,?,?)",
                              (g.id, day, f"{o:%H:%M}", f"{c:%H:%M}"))

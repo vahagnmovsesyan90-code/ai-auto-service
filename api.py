@@ -3,9 +3,13 @@
 from datetime import datetime, time
 from zoneinfo import ZoneInfo
 
+import hmac
+import os
+import threading
+from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
@@ -13,11 +17,21 @@ from data import DAY_NAMES, Garage
 import admin
 import chat as chat_engine
 import queries
+import telegram
 from auth import chat_limiter, rate_limit, request_limiter
 from queries import (all_garages, all_services, find_services, garages_for_service, get_garage,
                      get_service, is_open, open_garages)
 
-app = FastAPI(title="AI Auto Service API", version="1.0")
+@asynccontextmanager
+async def lifespan(_app):
+    """Գործարկման ժամանակ՝ Telegram բոտի webhook-ի գրանցում (եթե TELEGRAM_BOT_TOKEN-ը նշված է)։"""
+    if telegram.enabled():
+        url = os.getenv("PUBLIC_URL") or os.getenv("RENDER_EXTERNAL_URL")
+        threading.Thread(target=telegram.setup, args=(url,), daemon=True).start()
+    yield
+
+
+app = FastAPI(title="AI Auto Service API", version="1.1", lifespan=lifespan)
 app.include_router(admin.router)
 TZ = ZoneInfo("Asia/Yerevan")
 
@@ -158,9 +172,24 @@ def create_request(body: RequestIn, request: Request):
                                  body.garage_id, body.service_id, body.message.strip())
     if rid is None:
         raise HTTPException(400, "Գարաժը կամ ծառայությունը գոյություն չունի")
+    telegram.notify_request(rid)  # գարաժին (եթե կապված է) և գլխավոր ադմինին
     return {"id": rid}
 
 
 @app.get("/panel", include_in_schema=False)
 def admin_page():
     return FileResponse(Path(__file__).parent / "admin.html")
+
+
+@app.post("/telegram/webhook", include_in_schema=False)
+async def telegram_webhook(request: Request,
+                           x_telegram_bot_api_secret_token: str = Header(default="")):
+    """Telegram-ը այստեղ է ուղարկում բոտին գրված հաղորդագրությունները (/start ԿՈԴ)։"""
+    if not telegram.enabled() or not hmac.compare_digest(x_telegram_bot_api_secret_token,
+                                                         telegram.webhook_secret()):
+        raise HTTPException(403, "Forbidden")
+    try:
+        telegram.handle_update(await request.json())
+    except Exception as e:  # Telegram-ին միշտ 200, որպեսզի նույն update-ը անվերջ չկրկնի
+        print("Webhook սխալ:", type(e).__name__, e)
+    return {"ok": True}

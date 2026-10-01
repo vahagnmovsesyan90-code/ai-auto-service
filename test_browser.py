@@ -66,7 +66,7 @@ try:
         a.goto(BASE + "/panel")
         expect(a.locator("#login")).to_be_visible(); assert a.locator("#app").is_hidden()
         a.fill("#pw", "wrong"); a.click("#go")
-        expect(a.locator("#toast")).to_contain_text("Սխալ գաղտնաբառ"); expect(a.locator("#login")).to_be_visible()
+        expect(a.locator("#toast")).to_contain_text("Սխալ մուտքանուն կամ գաղտնաբառ"); expect(a.locator("#login")).to_be_visible()
         a.fill("#pw", "pw"); a.press("#pw", "Enter")
         expect(a.locator("#app")).to_be_visible()
         print("Մուտք (սխալ/ճիշտ գաղտնաբառ) ✓")
@@ -125,11 +125,60 @@ try:
         row.locator("[data-dels]").click(); expect(a.locator("tr[data-sid='7']")).to_have_count(0)
         print("Կատալոգ (ավելացնել, խմբագրել, ջնջել) ✓")
 
+        # --- Գարաժների մուտք. ադմինը ստեղծում է երկու գարաժի մուտք և նշանակում հայտ ---
+        a.click("[data-t=garages]")
+        a.get_by_role("button", name="Garage Kentron").click()
+        a.fill("#ap", "123"); a.fill("#al", "kentron"); a.click("#saveAcc")
+        expect(a.locator("#toast")).to_contain_text("Սխալ" if False else "Անվավեր")        # կարճ գաղտնաբառը մերժվում է
+        a.fill("#ap", "kentron-pass-1"); a.click("#saveAcc")
+        expect(a.locator("#toast")).to_contain_text("Մուտքը պահպանվեց")
+        expect(a.locator("#main")).to_contain_text("Մուտքանուն՝ kentron")
+        a.get_by_role("button", name="AutoPro Plus").click()
+        a.fill("#al", "autopro"); a.fill("#ap", "autopro-pass-1"); a.click("#saveAcc")
+        expect(a.locator("#main")).to_contain_text("Մուտքանուն՝ autopro")                   # սպասում ենք իրական արդյունքին, ոչ հին toast-ին
+        a.get_by_role("button", name="Speed Service").click()
+        a.fill("#al", "kentron"); a.fill("#ap", "another-pass-1"); a.click("#saveAcc")
+        expect(a.locator("#toast")).to_contain_text("զբաղված")                               # կրկնվող մուտքանուն
+        ctx.request.post(BASE + "/requests", data={"name": "Վահե", "phone": "+374 99 111222", "message": "առանց գարաժի"})
+        a.reload(); expect(a.locator("#app")).to_be_visible()
+        row = a.locator("tr", has_text="Վահե")
+        expect(row.locator("select")).to_have_value("")
+        row.locator("select").select_option(label="AutoPro Plus")
+        expect(a.locator("#toast")).to_contain_text("նշանակվեց")
+        a.screenshot(path="shots/admin_assign.png")
+        print("Գարաժների մուտք և հայտի նշանակում (ադմին) ✓")
+
         # Session և logout
         a.reload(); expect(a.locator("#app")).to_be_visible()                  # sessionStorage-ը պահում է մուտքը
         a.click("#out"); expect(a.locator("#login")).to_be_visible()
         a.reload(); expect(a.locator("#login")).to_be_visible()
         print("Session, դուրս գալ ✓")
+
+        # --- Գարաժի սեփականատերը տեսնում է միայն իրենը ---
+        a.fill("#lg", "autopro"); a.fill("#pw", "wrong-pass"); a.click("#go")
+        expect(a.locator("#toast")).to_contain_text("Սխալ մուտքանուն կամ գաղտնաբառ"); expect(a.locator("#login")).to_be_visible()
+        a.fill("#pw", "autopro-pass-1"); a.press("#pw", "Enter")
+        expect(a.locator("#app")).to_be_visible()
+        expect(a.locator("#who")).to_have_text("AutoPro Plus")
+        expect(a.locator("#tabC")).to_be_hidden(); expect(a.locator("#tabG")).to_have_text("Իմ գարաժը")
+        expect(a.locator("#main")).to_contain_text("Վահե"); expect(a.locator("#main")).not_to_contain_text("Արամ")
+        assert a.locator("[data-assign]").count() == 0 and a.locator("[data-tglink='admin']").count() == 0
+        a.screenshot(path="shots/garage_requests.png")
+        a.click("[data-t=garages]")
+        assert a.locator(".chip").count() == 0 and a.locator("#delG").count() == 0 and a.locator("#saveAcc").count() == 0 and a.locator("#addG").count() == 0
+        expect(a.locator("#gn")).to_have_value("AutoPro Plus")
+        expect(a.locator("#main")).to_contain_text("Telegram-ը դեռ կարգավորված չէ")
+        a.locator("[data-price='1']").fill("8800"); a.locator("[data-price='1']").press("Tab")
+        expect(a.locator("#toast")).to_contain_text("Գինը պահպանվեց")
+        assert next(o for o in api("/services/1/garages") if o["garage"]["name"] == "AutoPro Plus")["price"] == 8800
+        a.screenshot(path="shots/garage_panel.png", full_page=True)
+        a.click("#out")
+        a.fill("#lg", "kentron"); a.fill("#pw", "kentron-pass-1"); a.click("#go")
+        expect(a.locator("#who")).to_have_text("Garage Kentron")
+        expect(a.locator("#main")).to_contain_text("Արամ"); expect(a.locator("#main")).not_to_contain_text("Վահե")
+        a.reload(); expect(a.locator("#who")).to_have_text("Garage Kentron")             # session-ը պահում է դերը
+        a.click("#out")
+        print("Գարաժի սեփականատիրոջ պանել (միայն իրենը, առանց ադմինի գործիքների) ✓")
 
         # Մոբայլ
         m = b.new_context(viewport={"width": 375, "height": 720}).new_page()

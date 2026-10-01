@@ -1,10 +1,11 @@
-"""Ադմինի մուտք և հարցումների սահմանափակում (առանց արտաքին գրադարանների)."""
+"""Մուտք (գլխավոր ադմին + գարաժների սեփականատերեր) և հարցումների սահմանափակում։"""
 import hashlib
 import hmac
 import os
 import secrets
 import time
 from collections import defaultdict, deque
+from dataclasses import dataclass
 
 from fastapi import Header, HTTPException, Request
 
@@ -22,32 +23,73 @@ if not SECRET_KEY:
     SECRET_KEY = secrets.token_hex(32)  # dev՝ սերվերի վերագործարկումից հետո նորից մուտք
 
 
-def check_password(password: str) -> bool:
+@dataclass(frozen=True)
+class Identity:
+    role: str                  # "admin" | "garage"
+    garage_id: int | None = None
+
+
+# ---- Գաղտնաբառեր ----
+_ITER = 200_000
+
+
+def hash_password(password: str) -> str:
+    salt = os.urandom(16)
+    h = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, _ITER)
+    return f"pbkdf2${salt.hex()}${h.hex()}"
+
+
+def verify_password(password: str, stored: str) -> bool:
+    try:
+        _, salt, h = stored.split("$")
+        calc = hashlib.pbkdf2_hmac("sha256", password.encode(), bytes.fromhex(salt), _ITER).hex()
+        return hmac.compare_digest(calc, h)
+    except (ValueError, TypeError):
+        return False
+
+
+DUMMY_HASH = hash_password("dummy-password")  # անհայտ մուտքանունի դեպքում նույն ժամանակը ծախսելու համար
+
+
+def check_password(password: str) -> bool:  # գլխավոր ադմին
     return hmac.compare_digest(password.encode(), ADMIN_PASSWORD.encode())
 
 
+# ---- Token ----
 def _sign(msg: str) -> str:
     return hmac.new(SECRET_KEY.encode(), msg.encode(), hashlib.sha256).hexdigest()
 
 
-def make_token() -> str:
-    exp = str(int(time.time()) + TOKEN_TTL)
-    return f"{exp}.{_sign(exp)}"
+def make_token(role: str, garage_id: int | None = None) -> str:
+    payload = f"{'a' if role == 'admin' else 'g'}:{garage_id or 0}:{int(time.time()) + TOKEN_TTL}"
+    return f"{payload}.{_sign(payload)}"
 
 
-def verify_token(token: str) -> bool:
+def verify_token(token: str) -> Identity | None:
     try:
-        exp, sig = token.split(".")
-        return hmac.compare_digest(sig, _sign(exp)) and int(exp) > time.time()
+        payload, sig = token.rsplit(".", 1)
+        if not hmac.compare_digest(sig, _sign(payload)):
+            return None
+        kind, gid, exp = payload.split(":")
+        if int(exp) <= time.time():
+            return None
+        return Identity("admin") if kind == "a" else Identity("garage", int(gid))
     except ValueError:
-        return False
+        return None
 
 
-def require_admin(authorization: str = Header(default="")) -> None:
-    if not authorization.startswith("Bearer ") or not verify_token(authorization[7:]):
+def require_user(authorization: str = Header(default="")) -> Identity:
+    user = verify_token(authorization[7:]) if authorization.startswith("Bearer ") else None
+    if user is None:
         raise HTTPException(401, "Անհրաժեշտ է մուտք գործել")
+    if user.role == "garage":
+        import queries  # ուշացված import՝ ցիկլից խուսափելու համար
+        if not queries.garage_login_active(user.garage_id):  # մուտքը հանված է կամ գարաժը ջնջված է
+            raise HTTPException(401, "Մուտքն այլևս վավեր չէ")
+    return user
 
 
+# ---- Rate limit ----
 class RateLimiter:
     """Առավելագույնը `limit` հարցում `window` վայրկյանում մեկ IP-ի համար։"""
     def __init__(self, limit: int, window: int = 60):
