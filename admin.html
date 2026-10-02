@@ -31,6 +31,10 @@ th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);vertical-a
 .chip.on{background:var(--acc);color:var(--accink);border-color:var(--acc)}
 .badge{font-size:12px;padding:2px 10px;border-radius:10px;background:#f2b705;color:#1d2529}.badge.done{background:var(--line);color:var(--mute)}
 .note{font-size:13px;color:var(--mute)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px}
+.card b{display:block;font-size:26px;line-height:1.2}.card span{font-size:13px;color:var(--mute)}
+td select{max-width:190px}
 @media(max-width:700px){header{padding:10px 14px}header nav{order:3;flex:1 1 100%}main{padding:14px}}
 #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:8px;opacity:0;pointer-events:none;transition:opacity .2s}
 #toast.show{opacity:1}#toast.err{background:var(--bad);color:#fff}
@@ -48,7 +52,7 @@ th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);vertical-a
 </div>
 <div id="app" class="hide">
   <header><b>AI Auto Service</b>
-    <nav id="tabs"><button data-t="requests">Հայտեր</button><button data-t="garages" id="tabG">Գարաժներ</button><button data-t="catalog" id="tabC">Կատալոգ</button></nav>
+    <nav id="tabs"><button data-t="requests">Հայտեր</button><button data-t="garages" id="tabG">Գարաժներ</button><button data-t="report">Հաշվետվություն</button><button data-t="catalog" id="tabC">Կատալոգ</button></nav>
     <span id="who" class="note" style="color:inherit;opacity:.7"></span><button id="out">Դուրս գալ</button></header>
   <main id="main"></main>
 </div>
@@ -66,7 +70,7 @@ async function api(method,path,body,auth=true){
   if(!r.ok){let m="Սխալ "+r.status;try{const j=await r.json();m=typeof j.detail==="string"?j.detail:"Անվավեր տվյալներ"}catch(e){}toast(m,true);throw new Error(m)}
   return r.json();
 }
-async function refresh(){D=await api("GET","/data")}
+async function refresh(){D=await api("GET","/data");R=null}
 function armed(btn,label){ // ջնջման երկքայլ հաստատում
   if(btn.dataset.arm)return true;
   btn.dataset.arm=1;btn.textContent="Հաստատել ջնջումը";btn.classList.add("danger");
@@ -94,15 +98,33 @@ function tgBox(who,linked){
   <div class="row"><button class="btn" data-tglink="${who}">${linked?"Միացնել այլ Telegram":"Միացնել Telegram"}</button>${linked?`<button class="btn g" data-tgunlink="${who}">Անջատել</button>`:""}</div>
   <div id="tgInfo-${who}" class="note" style="margin-top:10px"></div></div>`;
 }
+const STAGES={new:"Նոր",called:"Զանգահարվել է",no_answer:"Չպատասխանեց",booked:"Ժամ պայմանավորվեց",visited:"Այցելեց",declined:"Հրաժարվեց"};
+const REASONS={price:"Թանկ է",far:"Հեռու է",other_garage:"Գնաց այլ գարաժ",no_time:"Ժամը չհամապատասխանեց",changed_mind:"Այլևս պետք չէ",other:"Այլ պատճառ"};
+const optsOf=(o,sel)=>Object.entries(o).map(([k,v])=>`<option value="${k}" ${k===sel?"selected":""}>${v}</option>`).join("");
 function requestsView(){
   const n=D.requests.filter(r=>r.status==="new").length,adm=isAdmin();
-  const opts=r=>`<option value="">— նշանակված չէ —</option>`+D.garages.map(g=>`<option value="${g.id}" ${g.id===r.garage_id?"selected":""}>${esc(g.name)}</option>`).join("");
-  return `<h2>Հայտեր</h2><p class="sub">Նոր հայտեր՝ ${n}։ Զանգահարեք վարորդին և նշեք որպես մշակված։${adm?" Առանց գարաժի հայտերը նշանակեք գարաժի։":""}</p>
+  const gopts=r=>`<option value="">— նշանակված չէ —</option>`+D.garages.map(g=>`<option value="${g.id}" ${g.id===r.garage_id?"selected":""}>${esc(g.name)}</option>`).join("");
+  return `<h2>Հայտեր</h2><p class="sub">Նոր հայտեր՝ ${n}։ Զանգահարեք վարորդին և թարմացրեք փուլը. այսպես հաշվետվությունը ցույց կտա, թե քանի հայտ է հասել այցի։${adm?" Առանց գարաժի հայտերը նշանակեք գարաժի։":""}</p>
   ${adm?tgBox("admin",D.telegram.admin_linked):""}
-  <div class="box tbl">${D.requests.length?`<table><tr><th>Ժամանակ</th><th>Անուն</th><th>Հեռախոս</th><th>${adm?"Գարաժ":"Ծառայություն"}</th><th>Նշում</th><th></th></tr>
+  <div class="box tbl">${D.requests.length?`<table><tr><th>Ժամանակ</th><th>Անուն</th><th>Հեռախոս</th><th>${adm?"Գարաժ":"Ծառայություն"}</th><th>Նշում</th><th>Փուլ</th></tr>
   ${D.requests.map(r=>`<tr><td>${fmtDate(r.created_at)}</td><td>${esc(r.name)}</td><td><a href="tel:${esc(r.phone)}">${esc(r.phone)}</a></td>
-  <td>${adm?`<select data-assign="${r.id}" aria-label="Գարաժ">${opts(r)}</select><div class="note">${esc(r.service||"")}</div>`:esc(r.service||"—")}</td><td>${esc(r.message)}</td>
-  <td><button class="btn ${r.status==="new"?"":"g"}" data-req="${r.id}" data-to="${r.status==="new"?"done":"new"}">${r.status==="new"?"Մշակված է":"Վերաբացել"}</button></td></tr>`).join("")}</table>`:`<span class="note">Հայտեր դեռ չկան։</span>`}</div>`;
+  <td>${adm?`<select data-assign="${r.id}" aria-label="Գարաժ">${gopts(r)}</select><div class="note">${esc(r.service||"")}</div>`:esc(r.service||"—")}</td><td>${esc(r.message)}</td>
+  <td><select data-stage="${r.id}" aria-label="Փուլ">${optsOf(STAGES,r.status)}</select>
+  <select data-reason="${r.id}" aria-label="Հրաժարման պատճառ" class="${r.status==="declined"?"":"hide"}" style="margin-top:6px"><option value="">— պատճառ —</option>${optsOf(REASONS,r.decline_reason)}</select></td></tr>`).join("")}</table>`:`<span class="note">Հայտեր դեռ չկան։</span>`}</div>`;
+}
+let R=null,rmonth=new Date().toLocaleDateString("sv-SE",{timeZone:"Asia/Yerevan"}).slice(0,7);
+const pct=(a,b)=>b?Math.round(100*a/b)+"%":"—";
+const fmtMin=m=>m==null?"—":m<60?m+" ր":Math.floor(m/60)+" ժ "+(m%60)+" ր";
+const card=(v,l)=>`<div class="card"><b>${v}</b><span>${l}</span></div>`;
+function reportView(){
+  if(!R||R.month!==rmonth){api("GET","/report?month="+rmonth).then(r=>{R=r;render()}).catch(()=>{});return `<h2>Հաշվետվություն</h2><p class="note">Բեռնվում է…</p>`}
+  const T=R.total,reasons=Object.entries(T.decline_reasons).sort((a,b)=>b[1]-a[1]);
+  return `<h2>Հաշվետվություն</h2><p class="sub">Հայտերը՝ ըստ ստեղծման ամսվա։ Վիճակները ընթացիկն են։</p>
+  <div class="row" style="margin-bottom:16px"><input type="month" id="rm" value="${R.month}" aria-label="Ամիս"></div>
+  <div class="cards">${card(T.total,"Հայտեր")}${card(pct(T.responded,T.total),"Արձագանքվել է")}${card(pct(T.booked_plus,T.total),"Ժամ պայմանավորվեց")}${card(pct(T.visited,T.total),"Այցելեցին")}${card(fmtMin(T.median_response_min),"Արձագանքման ժամանակ (միջնային)")}</div>
+  <div class="box tbl"><table><tr><th>Գարաժ</th><th>Հայտեր</th><th>Նոր</th><th>Զանգ</th><th>Չպատ.</th><th>Ժամ</th><th>Այցելեց</th><th>Հրաժարվեց</th><th>Արձագանք</th><th>Այց</th><th>Ժամանակ</th></tr>
+  ${R.garages.map(g=>`<tr><td>${esc(g.name)}</td><td>${g.total}</td><td>${g.new}</td><td>${g.called}</td><td>${g.no_answer}</td><td>${g.booked}</td><td>${g.visited}</td><td>${g.declined}</td><td>${pct(g.responded,g.total)}</td><td>${pct(g.visited,g.total)}</td><td>${fmtMin(g.median_response_min)}</td></tr>`).join("")}</table></div>
+  <div class="box"><b>Ինչու են հրաժարվում</b>${reasons.length?`<table style="margin-top:8px">${reasons.map(([k,v])=>`<tr><td>${esc(REASONS[k]||k)}</td><td>${v}</td><td>${pct(v,T.declined)}</td></tr>`).join("")}</table>`:`<p class="note">Այս ամսվա համար հրաժարումներ չկան։</p>`}</div>`;
 }
 function garagesView(){
   const adm=isAdmin();
@@ -135,7 +157,7 @@ function catalogView(){
 }
 function render(){
   document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.t===tab));
-  $("#main").innerHTML=tab==="requests"?requestsView():tab==="garages"?garagesView():catalogView();
+  $("#main").innerHTML=tab==="requests"?requestsView():tab==="garages"?garagesView():tab==="report"?reportView():catalogView();
 }
 const kw=s=>s.split(",").map(x=>x.trim()).filter(Boolean);
 const curG=()=>D.garages.find(x=>x.id===gsel);
@@ -173,6 +195,13 @@ $("#main").onclick=async e=>{
 };
 $("#main").onchange=async e=>{
   const t=e.target,d=t.dataset,g=curG();
+  if(t.id==="rm"){rmonth=t.value||rmonth;R=null;render();return}
+  if(d.stage){
+    const rs=document.querySelector(`[data-reason="${d.stage}"]`);
+    if(t.value==="declined"){rs.classList.remove("hide");rs.focus();toast("Ընտրեք հրաժարման պատճառը");return}
+    rs.classList.add("hide");
+    try{await api("PATCH","/requests/"+d.stage,{status:t.value});await refresh();render();toast("Փուլը պահպանվեց")}catch(err){}return}
+  if(d.reason){if(!t.value)return;try{await api("PATCH","/requests/"+d.reason,{status:"declined",decline_reason:t.value});await refresh();render();toast("Փուլը պահպանվեց")}catch(err){}return}
   if(d.assign){try{await api("PUT",`/requests/${d.assign}/garage`,{garage_id:t.value?+t.value:null});await refresh();toast(t.value?"Հայտը նշանակվեց գարաժին":"Նշանակումը հանվեց")}catch(err){}return}
   if(!g)return;
   try{

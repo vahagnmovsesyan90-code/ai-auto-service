@@ -1,7 +1,9 @@
 """Ադմինի API. երկու դեր՝ գլխավոր ադմին (ամեն ինչ) և գարաժի սեփականատեր (միայն իր գարաժը և հայտերը)։"""
+from datetime import datetime, timezone
 from typing import Literal
+from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 import queries as q
@@ -54,7 +56,8 @@ class HoursIn(BaseModel):
 
 
 class StatusIn(BaseModel):
-    status: Literal["new", "done"]
+    status: Literal["new", "called", "no_answer", "booked", "visited", "declined"]
+    decline_reason: Literal["price", "far", "other_garage", "no_time", "changed_mind", "other"] | None = None
 
 
 class AssignIn(BaseModel):
@@ -257,7 +260,9 @@ def patch_request(request_id: int, body: StatusIn, user: Identity = Depends(requ
     r = q.request_row(request_id)
     if r is None or (user.role == "garage" and r["garage_id"] != user.garage_id):
         raise HTTPException(404, "Հայտը չի գտնվել")  # այլ գարաժի հայտի գոյությունը չենք բացահայտում
-    q.set_request_status(request_id, body.status)
+    if body.status == "declined" and body.decline_reason is None:
+        raise HTTPException(422, "Նշեք հրաժարման պատճառը")
+    q.set_request_status(request_id, body.status, body.decline_reason)
     return {"ok": True}
 
 
@@ -272,3 +277,18 @@ def assign_request(request_id: int, body: AssignIn, user: Identity = Depends(req
     if body.garage_id is not None:
         telegram.notify_request(request_id, to_admin=False)
     return {"ok": True}
+
+
+# ---- Հաշվետվություն ----
+@router.get("/report")
+def report(month: str | None = Query(default=None, pattern=r"^\d{4}-(0[1-9]|1[0-2])$"),
+           user: Identity = Depends(require_user)):
+    """Ամսական հաշվետվություն (Երևանի ժամանակով)։ Ադմինին՝ բոլոր գարաժները, գարաժին՝ միայն իրենը։"""
+    tz = ZoneInfo("Asia/Yerevan")
+    now = datetime.now(tz)
+    y, mo = (int(month[:4]), int(month[5:])) if month else (now.year, now.month)
+    start = datetime(y, mo, 1, tzinfo=tz)
+    end = datetime(y + (mo == 12), mo % 12 + 1, 1, tzinfo=tz)
+    utc = lambda d: d.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    data = q.request_report(utc(start), utc(end), user.garage_id if user.role == "garage" else None)
+    return {"month": f"{y}-{mo:02d}", **data}

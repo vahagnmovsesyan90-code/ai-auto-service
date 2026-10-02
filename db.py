@@ -13,6 +13,26 @@ from data import GARAGES, SERVICES
 
 DB_PATH = Path(os.getenv("AUTOSERVICE_DB", Path(__file__).parent / "autoservice.db"))
 
+REQUESTS_DDL = """
+CREATE TABLE IF NOT EXISTS requests (           -- վարորդների հայտերը
+    id INTEGER PRIMARY KEY,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,   -- UTC
+    name TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    garage_id INTEGER REFERENCES garages(id) ON DELETE SET NULL,
+    service_id INTEGER REFERENCES services(id) ON DELETE SET NULL,
+    message TEXT NOT NULL DEFAULT '',
+    -- փուլեր՝ new նոր, called զանգահարվել է, no_answer չպատասխանեց, booked ժամ պայմանավորվեց,
+    -- visited այցելեց, declined հրաժարվեց
+    status TEXT NOT NULL DEFAULT 'new'
+        CHECK (status IN ('new','called','no_answer','booked','visited','declined')),
+    decline_reason TEXT
+        CHECK (decline_reason IS NULL OR decline_reason IN ('price','far','other_garage','no_time','changed_mind','other')),
+    status_changed_at TEXT,                      -- UTC
+    first_response_at TEXT                       -- UTC. առաջին անգամ «նոր»-ից դուրս գալու պահը
+);
+"""
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS services (
     id INTEGER PRIMARY KEY,
@@ -43,16 +63,7 @@ CREATE TABLE IF NOT EXISTS garage_services (
     duration_min INTEGER NOT NULL CHECK (duration_min > 0),
     PRIMARY KEY (garage_id, service_id)
 );
-CREATE TABLE IF NOT EXISTS requests (           -- վարորդների հայտերը
-    id INTEGER PRIMARY KEY,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,   -- UTC
-    name TEXT NOT NULL,
-    phone TEXT NOT NULL,
-    garage_id INTEGER REFERENCES garages(id) ON DELETE SET NULL,
-    service_id INTEGER REFERENCES services(id) ON DELETE SET NULL,
-    message TEXT NOT NULL DEFAULT '',
-    status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new','done'))
-);
+{REQUESTS_DDL}
 CREATE TABLE IF NOT EXISTS working_hours (      -- միայն բաց օրերը
     garage_id INTEGER NOT NULL REFERENCES garages(id) ON DELETE CASCADE,
     weekday INTEGER NOT NULL CHECK (weekday BETWEEN 0 AND 6),  -- 0 = Երկուշաբթի
@@ -72,6 +83,14 @@ def _migrate(conn: sqlite3.Connection) -> None:
         if name not in cols:
             conn.execute(f"ALTER TABLE garages ADD COLUMN {name} {decl}")
     conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_garages_login ON garages(login) WHERE login IS NOT NULL")
+    # հին requests աղյուսակ (միայն new/done). վերակառուցում ենք, «done»-ը դառնում է «called»
+    sql = (conn.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='requests'").fetchone() or [""])[0]
+    if "'done'" in sql:
+        conn.executescript("ALTER TABLE requests RENAME TO requests_old;" + REQUESTS_DDL + """
+            INSERT INTO requests(id, created_at, name, phone, garage_id, service_id, message, status)
+            SELECT id, created_at, name, phone, garage_id, service_id, message,
+                   CASE status WHEN 'done' THEN 'called' ELSE status END FROM requests_old;
+            DROP TABLE requests_old;""")
     conn.commit()
 
 
@@ -81,7 +100,7 @@ def connect() -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     if str(DB_PATH) not in _ready:
-        conn.executescript(SCHEMA)
+        conn.executescript(SCHEMA.replace("{REQUESTS_DDL}", REQUESTS_DDL))
         _migrate(conn)
         if (os.getenv("SEED_SAMPLE", "1") == "1"
                 and conn.execute("SELECT COUNT(*) FROM services").fetchone()[0] == 0):

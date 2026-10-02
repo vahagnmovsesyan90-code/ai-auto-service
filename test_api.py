@@ -90,9 +90,9 @@ assert c.post("/requests", json={"name": "X", "phone": "abc"}).status_code == 42
 assert c.post("/requests", json={"name": "X", "phone": "123456", "garage_id": 999}).status_code == 400
 reqs = c.get("/admin/data", headers=H).json()["requests"]
 assert reqs[0]["name"] == "Արամ" and reqs[0]["garage"] == "AutoPro Երևան" and reqs[0]["status"] == "new"
-assert c.patch(f"/admin/requests/{reqs[0]['id']}", headers=H, json={"status": "done"}).status_code == 200
+assert c.patch(f"/admin/requests/{reqs[0]['id']}", headers=H, json={"status": "called"}).status_code == 200
 assert c.patch(f"/admin/requests/{reqs[0]['id']}", headers=H, json={"status": "bad"}).status_code == 422
-assert c.get("/admin/data", headers=H).json()["requests"][0]["status"] == "done"
+assert c.get("/admin/data", headers=H).json()["requests"][0]["status"] == "called"
 c.delete("/admin/garages/1", headers=H)                                                     # գարաժ ջնջելիս հայտը մնում է
 assert c.get("/admin/data", headers=H).json()["requests"][0]["garage"] is None
 print("Հայտերի թեստերն անցան ✓")
@@ -169,11 +169,11 @@ assert c.put("/admin/garages/2/account", headers=HK, json={"login": "evil", "pas
 assert c.put(f"/admin/requests/{r0}/garage", headers=HK, json={"garage_id": 2}).status_code == 403
 assert c.post("/admin/telegram/link", headers=HK).status_code == 403
 # այլ գարաժի հայտը «գոյություն չունի»
-assert c.patch(f"/admin/requests/{r3}", headers=HK, json={"status": "done"}).status_code == 404
-assert c.patch(f"/admin/requests/{r0}", headers=HK, json={"status": "done"}).status_code == 404
+assert c.patch(f"/admin/requests/{r3}", headers=HK, json={"status": "called"}).status_code == 404
+assert c.patch(f"/admin/requests/{r0}", headers=HK, json={"status": "called"}).status_code == 404
 assert next(r for r in c.get("/admin/data", headers=H).json()["requests"] if r["id"] == r3)["status"] == "new"   # չի փոխվել
 # սեփականը՝ թույլատրված
-assert c.patch(f"/admin/requests/{r2}", headers=HK, json={"status": "done"}).status_code == 200
+assert c.patch(f"/admin/requests/{r2}", headers=HK, json={"status": "called"}).status_code == 200
 assert c.put("/admin/garages/2", headers=HK, json={"name": "Kentron Plus", "address": "Նոր 1", "phone": "+374 10 777777"}).status_code == 200
 assert c.put("/admin/garages/2/services/1", headers=HK, json={"price": 6500, "duration_min": 40}).status_code == 200
 assert c.get("/garages/2").json()["name"] == "Kentron Plus"
@@ -273,6 +273,92 @@ assert c.get("/admin/data", headers=HS).status_code == 401
 print("Մուտքի հանման թեստերն անցան ✓")
 
 # =====================================================================
+# Հայտերի փուլեր, արձագանքման ժամանակ, ամսական հաշվետվություն
+# =====================================================================
+auth.login_limiter.hits.clear()
+gA = c.post("/admin/garages", headers=H, json={"name": "Report A"}).json()["id"]
+gB = c.post("/admin/garages", headers=H, json={"name": "Report B"}).json()["id"]
+c.put(f"/admin/garages/{gA}/account", headers=H, json={"login": "repa", "password": "repa-pass-1"})
+c.put(f"/admin/garages/{gB}/account", headers=H, json={"login": "repb", "password": "repb-pass-1"})
+HA = {"Authorization": "Bearer " + c.post("/admin/login", json={"login": "repa", "password": "repa-pass-1"}).json()["token"]}
+HB = {"Authorization": "Bearer " + c.post("/admin/login", json={"login": "repb", "password": "repb-pass-1"}).json()["token"]}
+
+# --- փուլերի անցումներ ---
+rq = new_req("ՓուլՏեստ", gA)
+row = lambda: next(r for r in c.get("/admin/data", headers=HA).json()["requests"] if r["id"] == rq)
+assert row()["status"] == "new" and row()["first_response_at"] is None
+assert c.patch(f"/admin/requests/{rq}", headers=HA, json={"status": "called"}).status_code == 200
+first = row()["first_response_at"]
+assert row()["status"] == "called" and first is not None and row()["status_changed_at"] is not None
+for st in ("no_answer", "booked", "visited"):
+    assert c.patch(f"/admin/requests/{rq}", headers=HA, json={"status": st}).status_code == 200 and row()["status"] == st
+assert row()["first_response_at"] == first                                              # արձագանքման պահը չի փոխվում
+assert c.patch(f"/admin/requests/{rq}", headers=HA, json={"status": "declined"}).status_code == 422     # պատճառը պարտադիր է
+assert c.patch(f"/admin/requests/{rq}", headers=HA, json={"status": "declined", "decline_reason": "bad"}).status_code == 422
+assert c.patch(f"/admin/requests/{rq}", headers=HA, json={"status": "bogus"}).status_code == 422
+assert c.patch(f"/admin/requests/{rq}", headers=HA, json={"status": "declined", "decline_reason": "price"}).status_code == 200
+assert row()["status"] == "declined" and row()["decline_reason"] == "price"
+assert c.patch(f"/admin/requests/{rq}", headers=HA, json={"status": "booked", "decline_reason": "price"}).status_code == 200
+assert row()["decline_reason"] is None                                                   # պատճառը մաքրվում է
+assert c.patch(f"/admin/requests/{rq}", headers=HA, json={"status": "new"}).status_code == 200
+assert row()["first_response_at"] == first                                               # նորից բացելը չի զրոյացնում
+assert c.patch(f"/admin/requests/{rq}", headers=HB, json={"status": "visited"}).status_code == 404       # այլ գարաժ
+
+# --- հաշվետվություն. վերահսկվող տվյալներ՝ ուղիղ բազայում ---
+def ins(garage, status, created, first=None, reason=None):
+    with db.connect() as cn:
+        cn.execute("INSERT INTO requests(name,phone,garage_id,status,created_at,first_response_at,decline_reason) VALUES ('R','+374 91 000000',?,?,?,?,?)",
+                   (garage, status, created, first, reason))
+with db.connect() as cn:
+    cn.execute("DELETE FROM requests WHERE garage_id IN (?,?)", (gA, gB))
+# Հոկտեմբեր (Երևան UTC+4). 2030-02-28 20:30 UTC = 2030-03-01 00:30 Երևան -> հոկտեմբեր
+ins(gA, "visited",  "2030-03-05 08:00:00", "2030-03-05 08:10:00")           # արձագանք 10 ր
+ins(gA, "booked",   "2030-03-06 08:00:00", "2030-03-06 08:30:00")           # 30 ր
+ins(gA, "declined", "2030-03-07 08:00:00", "2030-03-07 09:00:00", "price")  # 60 ր
+ins(gA, "declined", "2030-03-08 08:00:00", "2030-03-08 08:20:00", "price")
+ins(gA, "declined", "2030-03-09 08:00:00", "2030-03-09 08:20:00", "far")
+ins(gA, "new",      "2030-03-10 08:00:00")
+ins(gA, "no_answer","2030-02-28 20:30:00", "2030-02-28 21:00:00")           # Երևանում՝ 1 հոկտեմբեր 00:30 -> հոկտեմբեր
+ins(gA, "visited",  "2030-02-28 19:59:00", "2030-02-28 20:10:00")           # Երևանում՝ 30 սեպտեմբեր 23:59 -> սեպտեմբեր
+ins(gA, "visited",  "2030-03-31 19:59:00", "2030-03-31 20:10:00")           # Երևանում՝ 31 հոկտեմբեր 23:59 -> հոկտեմբեր
+ins(gA, "visited",  "2030-03-31 20:00:00", "2030-03-31 20:10:00")           # Երևանում՝ 1 նոյեմբեր 00:00 -> նոյեմբեր
+ins(gB, "called",   "2030-03-12 08:00:00", "2030-03-12 08:05:00")
+ins(None, "new",    "2030-03-13 08:00:00")                                   # առանց գարաժի
+
+rep = c.get("/admin/report?month=2030-03", headers=H).json()
+assert rep["month"] == "2030-03"
+A = next(g for g in rep["garages"] if g["garage_id"] == gA)
+assert A["total"] == 8, A                                                    # 6 սովորական + 1 թվագրված 01.03 00:30 + 1 թվագրված 31.03 23:59
+assert (A["visited"], A["booked"], A["declined"], A["new"], A["no_answer"]) == (2, 1, 3, 1, 1), A
+assert A["responded"] == 7 and A["booked_plus"] == 3
+assert A["decline_reasons"] == {"price": 2, "far": 1}
+assert A["median_response_min"] == 20, A                                     # {10,11,20,20,30,30,60} -> միջնային 20
+B = next(g for g in rep["garages"] if g["garage_id"] == gB)
+assert B["total"] == 1 and B["called"] == 1 and B["median_response_min"] == 5
+assert rep["garages"][-1]["garage_id"] is None and rep["garages"][-1]["new"] == 1      # նշանակված չեղածները
+assert rep["total"]["total"] == sum(g["total"] for g in rep["garages"]) == 8 + 1 + 1
+# ամսվա սահմանները (Երևանի ժամանակով)
+sep = c.get("/admin/report?month=2030-02", headers=H).json()
+assert next(g for g in sep["garages"] if g["garage_id"] == gA)["total"] == 1          # միայն 23:59-ը
+nov = c.get("/admin/report?month=2030-04", headers=H).json()
+assert next(g for g in nov["garages"] if g["garage_id"] == gA)["total"] == 1          # 1 նոյեմբեր 00:00
+empty = c.get("/admin/report?month=2020-01", headers=H).json()
+assert empty["total"]["total"] == 0 and empty["total"]["median_response_min"] is None
+# դեկտեմբերից հունվար անցումը
+assert c.get("/admin/report?month=2030-12", headers=H).status_code == 200
+# անվավեր ամիս
+for bad in ("2026-13", "2026-00", "abc", "2026-1"):
+    assert c.get("/admin/report?month=" + bad, headers=H).status_code == 422, bad
+# գարաժին՝ միայն իրենը
+ra = c.get("/admin/report?month=2030-03", headers=HA).json()
+assert [g["garage_id"] for g in ra["garages"]] == [gA] and ra["total"]["total"] == 8
+rb = c.get("/admin/report?month=2030-03", headers=HB).json()
+assert [g["garage_id"] for g in rb["garages"]] == [gB] and rb["total"]["total"] == 1 and rb["total"]["decline_reasons"] == {}
+assert c.get("/admin/report").status_code == 401                                        # առանց մուտքի
+assert c.get("/admin/report").status_code == 401 and c.get("/admin/report?month=2030-03").status_code == 401
+print("Փուլերի և հաշվետվության թեստերն անցան ✓")
+
+# =====================================================================
 # Հին բազայի migration (Փուլ 5-ի բազան չի կորչում)
 # =====================================================================
 import sqlite3, importlib
@@ -280,10 +366,19 @@ old_path = os.path.join(tempfile.mkdtemp(), "old.db")
 oc = sqlite3.connect(old_path)
 oc.executescript("""CREATE TABLE services (id INTEGER PRIMARY KEY, name TEXT NOT NULL, category TEXT NOT NULL, keywords TEXT NOT NULL DEFAULT '');
 CREATE TABLE garages (id INTEGER PRIMARY KEY, name TEXT NOT NULL, address TEXT NOT NULL, phone TEXT NOT NULL);
-INSERT INTO services VALUES (1,'Յուղ','Սպասարկում','յուղ'); INSERT INTO garages VALUES (7,'Հին գարաժ','Ա 1','+374 1');""")
+INSERT INTO services VALUES (1,'Յուղ','Սպասարկում','յուղ'); INSERT INTO garages VALUES (7,'Հին գարաժ','Ա 1','+374 1');
+CREATE TABLE requests (id INTEGER PRIMARY KEY, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, name TEXT NOT NULL, phone TEXT NOT NULL,
+  garage_id INTEGER REFERENCES garages(id) ON DELETE SET NULL, service_id INTEGER REFERENCES services(id) ON DELETE SET NULL,
+  message TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new','done')));
+INSERT INTO requests(id,name,phone,garage_id,status) VALUES (1,'Հին մշակված','+374 1',7,'done'),(2,'Հին նոր','+374 2',7,'new');""")
 oc.commit(); oc.close()
 db.DB_PATH = db.Path(old_path); db._ready.clear()
 assert queries.get_garage(7).name == "Հին գարաժ"                                      # հին տվյալները մնացել են
 assert queries.set_garage_login(7, "old", auth.hash_password("old-password")) == "ok"  # նոր սյուները ավելացել են
 assert queries.find_garage_login("old")[0] == 7
 print("Migration-ի թեստը անցավ ✓")
+old_reqs = {r["id"]: r["status"] for r in queries.list_requests()}
+assert old_reqs == {1: "called", 2: "new"}, old_reqs                                    # «done» -> «called», տվյալները մնացել են
+assert queries.set_request_status(2, "booked") and queries.set_request_status(1, "declined", "price")   # նոր փուլերը թույլատրված են
+assert queries.request_row(2)["first_response_at"] is not None
+print("Հին հայտերի աղյուսակի migration-ը անցավ ✓")

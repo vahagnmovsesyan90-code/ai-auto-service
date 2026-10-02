@@ -75,9 +75,32 @@ try:
         expect(a.locator("#main")).to_contain_text("Արամ"); expect(a.locator("#main")).to_contain_text("+374 91 123456")
         expect(a.locator("#main")).to_contain_text("Garage Kentron"); expect(a.locator("#main")).to_contain_text("Վաղը առավոտյան")
         a.screenshot(path="shots/admin_requests.png")
-        a.get_by_role("button", name="Մշակված է").click()
-        expect(a.get_by_role("button", name="Վերաբացել")).to_be_visible()
-        print("Հայտերի բաժին ✓")
+        stage = a.locator("[data-stage]").first
+        expect(stage).to_have_value("new")
+        stage.select_option("called")
+        expect(a.locator("#toast")).to_contain_text("Փուլը պահպանվեց"); expect(a.locator("[data-stage]").first).to_have_value("called")
+        # «Հրաժարվեց»-ը պահանջում է պատճառ. մինչև ընտրելը չի պահվում
+        a.locator("[data-stage]").first.select_option("declined")
+        expect(a.locator("[data-reason]").first).to_be_visible(); expect(a.locator("#toast")).to_contain_text("Ընտրեք հրաժարման պատճառը")
+        a.reload(); expect(a.locator("[data-stage]").first).to_have_value("called")           # դեռ չի պահվել
+        a.locator("[data-stage]").first.select_option("declined")
+        a.locator("[data-reason]").first.select_option("price")
+        expect(a.locator("#toast")).to_contain_text("Փուլը պահպանվեց")
+        expect(a.locator("[data-stage]").first).to_have_value("declined"); expect(a.locator("[data-reason]").first).to_have_value("price")
+        a.locator("[data-stage]").first.select_option("booked")                               # պատճառը թաքնվում է
+        expect(a.locator("[data-reason]").first).to_be_hidden()
+        a.locator("[data-stage]").first.select_option("declined"); a.locator("[data-reason]").first.select_option("price")
+        expect(a.locator("[data-stage]").first).to_have_value("declined")
+        # հաշվետվություն
+        a.click("[data-t=report]")
+        expect(a.locator(".card b").first).to_have_text("1")                                  # 1 հայտ այս ամսում
+        expect(a.locator("#main")).to_contain_text("Ինչու են հրաժարվում"); expect(a.locator("#main")).to_contain_text("Թանկ է")
+        expect(a.locator("#main")).to_contain_text("Արձագանքման ժամանակ")
+        a.screenshot(path="shots/admin_report.png", full_page=True)
+        a.locator("#rm").fill("2020-01")
+        expect(a.locator(".card b").first).to_have_text("0"); expect(a.locator("#main")).to_contain_text("հրաժարումներ չկան")
+        a.click("[data-t=requests]")
+        print("Հայտերի փուլեր, հրաժարման պատճառ, հաշվետվություն ✓")
 
         # Գարաժներ. գին
         a.click("[data-t=garages]")
@@ -142,8 +165,8 @@ try:
         ctx.request.post(BASE + "/requests", data={"name": "Վահե", "phone": "+374 99 111222", "message": "առանց գարաժի"})
         a.reload(); expect(a.locator("#app")).to_be_visible()
         row = a.locator("tr", has_text="Վահե")
-        expect(row.locator("select")).to_have_value("")
-        row.locator("select").select_option(label="AutoPro Plus")
+        expect(row.locator("[data-assign]")).to_have_value("")
+        row.locator("[data-assign]").select_option(label="AutoPro Plus")
         expect(a.locator("#toast")).to_contain_text("նշանակվեց")
         a.screenshot(path="shots/admin_assign.png")
         print("Գարաժների մուտք և հայտի նշանակում (ադմին) ✓")
@@ -164,6 +187,10 @@ try:
         expect(a.locator("#main")).to_contain_text("Վահե"); expect(a.locator("#main")).not_to_contain_text("Արամ")
         assert a.locator("[data-assign]").count() == 0 and a.locator("[data-tglink='admin']").count() == 0
         a.screenshot(path="shots/garage_requests.png")
+        a.click("[data-t=report]")                                                           # գարաժը տեսնում է միայն իր հաշվետվությունը
+        expect(a.locator(".card b").first).to_have_text("1"); expect(a.locator("#main table").first.locator("tr")).to_have_count(2)
+        expect(a.locator("#main")).to_contain_text("AutoPro Plus"); expect(a.locator("#main")).not_to_contain_text("Garage Kentron")
+        a.click("[data-t=requests]")
         a.click("[data-t=garages]")
         assert a.locator(".chip").count() == 0 and a.locator("#delG").count() == 0 and a.locator("#saveAcc").count() == 0 and a.locator("#addG").count() == 0
         expect(a.locator("#gn")).to_have_value("AutoPro Plus")

@@ -85,7 +85,7 @@ with sync_playwright() as p:
     # նշանակում պանելից -> գարաժը ստանում է
     a.click("[data-t=requests]"); a.reload(); expect(a.locator("#app")).to_be_visible()
     sent.clear()
-    a.locator("tr", has_text="Մարի").locator("select").select_option(label="Garage Kentron")
+    a.locator("tr", has_text="Մարի").locator("[data-assign]").select_option(label="Garage Kentron")
     expect(a.locator("#toast")).to_contain_text("նշանակվեց")
     assert [c for c, _ in texts()] == [888] and "Մարի" in texts()[0][1]
     print("Նշանակման ծանուցում գարաժին ✓")

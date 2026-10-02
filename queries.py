@@ -158,11 +158,16 @@ def create_request(name: str, phone: str, garage_id: int | None,
         return None
 
 
+STATUSES = ("new", "called", "no_answer", "booked", "visited", "declined")
+DECLINE_REASONS = ("price", "far", "other_garage", "no_time", "changed_mind", "other")
+
+
 def list_requests(garage_id: int | None = None) -> list[dict]:
     """Բոլոր հայտերը, կամ միայն տվյալ գարաժինը (գարաժի սեփականատիրոջ համար)։"""
     where, args = ("WHERE r.garage_id = ?", (garage_id,)) if garage_id is not None else ("", ())
     with connect() as c:
         rows = c.execute(f"""SELECT r.id, r.created_at, r.name, r.phone, r.message, r.status,
+                                   r.decline_reason, r.status_changed_at, r.first_response_at,
                                    r.garage_id, g.name AS garage, r.service_id, s.name AS service
                             FROM requests r LEFT JOIN garages g ON g.id = r.garage_id
                             LEFT JOIN services s ON s.id = r.service_id {where}
@@ -189,9 +194,58 @@ def set_request_garage(request_id: int, garage_id: int | None) -> str:
         return "badgarage"
 
 
-def set_request_status(request_id: int, status: str) -> bool:
+def set_request_status(request_id: int, status: str, decline_reason: str | None = None) -> bool:
+    """Փոխում է հայտի փուլը։ Առաջին անգամ «նոր»-ից դուրս գալիս գրանցվում է արձագանքման պահը
+    (այն չի փոխվում, եթե հետո նորից բացեն)։ Հրաժարման պատճառը պահվում է միայն «declined»-ի դեպքում։"""
+    if status not in STATUSES or (decline_reason is not None and decline_reason not in DECLINE_REASONS):
+        return False
     with connect() as c:
-        return c.execute("UPDATE requests SET status=? WHERE id=?", (status, request_id)).rowcount == 1
+        row = c.execute("SELECT status, first_response_at FROM requests WHERE id=?", (request_id,)).fetchone()
+        if row is None:
+            return False
+        first = row["first_response_at"] is None and row["status"] == "new" and status != "new"
+        c.execute("""UPDATE requests SET status=?, decline_reason=?, status_changed_at=CURRENT_TIMESTAMP,
+                     first_response_at=CASE WHEN ? THEN CURRENT_TIMESTAMP ELSE first_response_at END
+                     WHERE id=?""",
+                  (status, decline_reason if status == "declined" else None, 1 if first else 0, request_id))
+    return True
+
+
+def _metrics(rows: list) -> dict:
+    from collections import Counter
+    from datetime import datetime as dt
+    from statistics import median
+    fmt = "%Y-%m-%d %H:%M:%S"
+    by = Counter(r["status"] for r in rows)
+    waits = [(dt.strptime(r["first_response_at"], fmt) - dt.strptime(r["created_at"], fmt)).total_seconds() / 60
+             for r in rows if r["first_response_at"]]
+    return {
+        "total": len(rows), **{s: by.get(s, 0) for s in STATUSES},
+        "responded": len(rows) - by.get("new", 0),             # «նոր»-ից դուրս եկածները
+        "booked_plus": by.get("booked", 0) + by.get("visited", 0),
+        "median_response_min": round(median(waits)) if waits else None,
+        "decline_reasons": dict(Counter(r["decline_reason"] or "other" for r in rows if r["status"] == "declined")),
+    }
+
+
+def request_report(start_utc: str, end_utc: str, garage_id: int | None = None) -> dict:
+    """Հայտերի հաշվետվություն ըստ ստեղծման ժամանակի [start, end) (UTC տողեր)։
+    Վիճակները ընթացիկն են (պատմություն չենք պահում)։"""
+    where, args = "WHERE created_at >= ? AND created_at < ?", [start_utc, end_utc]
+    if garage_id is not None:
+        where, args = where + " AND garage_id = ?", args + [garage_id]
+    with connect() as c:
+        rows = c.execute(f"SELECT garage_id, status, decline_reason, created_at, first_response_at FROM requests {where}",
+                         args).fetchall()
+        garages = c.execute("SELECT id, name FROM garages" + (" WHERE id = ?" if garage_id is not None else "") +
+                            " ORDER BY id", (garage_id,) if garage_id is not None else ()).fetchall()
+    out = [{"garage_id": g["id"], "name": g["name"], **_metrics([r for r in rows if r["garage_id"] == g["id"]])}
+           for g in garages]
+    if garage_id is None:
+        unassigned = [r for r in rows if r["garage_id"] is None]
+        if unassigned:
+            out.append({"garage_id": None, "name": "Նշանակված չէ", **_metrics(unassigned)})
+    return {"total": _metrics(list(rows)), "garages": out}
 
 
 # ================= Գարաժների մուտք և Telegram =================
