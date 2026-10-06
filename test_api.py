@@ -28,7 +28,9 @@ import os, json
 os.environ.pop("ANTHROPIC_API_KEY", None)
 r = c.post("/chat", json={"messages": [{"role": "user", "content": "արգելակելիս ճռռոց է լսվում"}]})
 assert r.status_code == 200 and r.json()["mode"] == "simple"
-assert "Speed Service" in r.json()["reply"] and "14,000" in r.json()["reply"], r.json()
+cards = r.json()["cards"]
+assert [(x["name"], x["price_amd"]) for x in cards] == [("Speed Service", 14000), ("AutoPro Երևան", 15000), ("Garage Kentron", 18000)], cards
+assert cards[0]["service_name"] and cards[0]["rating"] == {"avg": None, "count": 0, "score": None}
 assert c.post("/chat", json={"messages": []}).status_code == 400
 assert c.get("/app").status_code == 200
 
@@ -43,7 +45,7 @@ assert db.DB_PATH.exists()
 assert queries.set_price(3, 2, 13000) is True
 assert queries.set_price(3, 6, 1000) is False          # Speed Service-ը օդորակիչ չունի
 assert c.get("/services/2/garages").json()[0]["price"] == 13000   # API-ն տեսնում է փոփոխությունը
-assert "13,000" in c.post("/chat", json={"messages": [{"role": "user", "content": "արգելակ ճռռոց"}]}).json()["reply"]
+assert c.post("/chat", json={"messages": [{"role": "user", "content": "արգելակ ճռռոց"}]}).json()["cards"][0]["price_amd"] == 13000
 db._ready.clear()                                        # նոր կապ՝ տվյալները մնացել են ֆայլում
 assert queries.get_garage(3).services[2].price == 13000
 db.reset()
@@ -66,7 +68,7 @@ assert c.put(f"/admin/garages/{gid}/services/{sid}", headers=H, json={"price": 7
 assert c.put(f"/admin/garages/{gid}/services/{sid}", headers=H, json={"price": -5, "duration_min": 45}).status_code == 422
 assert c.put(f"/admin/garages/999/services/{sid}", headers=H, json={"price": 1, "duration_min": 5}).status_code == 404
 assert c.get(f"/services/{sid}/garages").json()[0]["price"] == 7000        # հանրային API-ն տեսնում է
-assert "7,000" in c.post("/chat", json={"messages": [{"role": "user", "content": "լուսարձակները մթագնել են"}]}).json()["reply"]  # keyword-ը աշխատում է
+assert c.post("/chat", json={"messages": [{"role": "user", "content": "լուսարձակները մթագնել են"}]}).json()["cards"][0]["price_amd"] == 7000  # keyword-ը աշխատում է
 
 good = {"days": [{"weekday": 0, "open": "08:00", "close": "17:00"}, {"weekday": 6, "open": "10:00", "close": "14:00"}]}
 assert c.put(f"/admin/garages/{gid}/hours", headers=H, json=good).status_code == 200
@@ -357,6 +359,136 @@ assert [g["garage_id"] for g in rb["garages"]] == [gB] and rb["total"]["total"] 
 assert c.get("/admin/report").status_code == 401                                        # առանց մուտքի
 assert c.get("/admin/report").status_code == 401 and c.get("/admin/report?month=2030-03").status_code == 401
 print("Փուլերի և հաշվետվության թեստերն անցան ✓")
+
+# =====================================================================
+# Վարորդի գնահատականներ. հաստատում, կեղծելու դեմ պաշտպանություն, վարկանիշ
+# =====================================================================
+import api as apimod
+apimod.review_limiter.limit = 1000
+auth.login_limiter.hits.clear()
+R1 = c.post("/admin/garages", headers=H, json={"name": "Rate One"}).json()["id"]
+R2 = c.post("/admin/garages", headers=H, json={"name": "Rate Two"}).json()["id"]
+c.put(f"/admin/garages/{R1}/account", headers=H, json={"login": "rate1", "password": "rate1-pass-1"})
+c.put(f"/admin/garages/{R2}/account", headers=H, json={"login": "rate2", "password": "rate2-pass-1"})
+H1 = {"Authorization": "Bearer " + c.post("/admin/login", json={"login": "rate1", "password": "rate1-pass-1"}).json()["token"]}
+H2 = {"Authorization": "Bearer " + c.post("/admin/login", json={"login": "rate2", "password": "rate2-pass-1"}).json()["token"]}
+def mk(garage, phone, name="Վ"):
+    rid = queries.create_request(name, phone, garage, None, "")
+    return rid, queries.request_row(rid)["review_token"]
+def review(token, **kw): return c.post(f"/reviews/{token}", json=kw)
+
+# հայտի պատասխանում վարորդը ստանում է գնահատման հղում (միայն եթե գարաժ կա)
+r = c.post("/requests", json={"name": "Գ", "phone": "+374 91 100001", "garage_id": R1}).json()
+assert r["review_url"].startswith("/review/") and r["garage"] == "Rate One"
+assert c.post("/requests", json={"name": "Գ", "phone": "+374 91 100002"}).json()["review_url"] is None
+tok = r["review_url"].split("/")[-1]
+info = c.get(f"/review-info/{tok}").json()
+assert info["garage"] == "Rate One" and info["already_reviewed"] is False
+assert c.get("/review-info/nonexistent-token").status_code == 404
+assert c.get("/review/anything").status_code == 200 and "html" in c.get("/review/anything").headers["content-type"]
+
+# վալիդացիա
+assert review(tok, went=True).status_code == 422                                # «գնացի»՝ առանց աստղերի
+assert review(tok, went=True, rating=0).status_code == 422 and review(tok, went=True, rating=6).status_code == 422
+assert review(tok, went=False).status_code == 422                               # «չգնացի»՝ առանց պատճառի
+assert review(tok, went=False, reason="bogus").status_code == 422
+assert review(tok, went=True, rating=5, comment="x" * 501).status_code == 422
+assert review("nonexistent-token", went=True, rating=5).status_code == 404
+nog_rid, nog_tok = mk(None, "+374 91 100003")
+assert review(nog_tok, went=True, rating=5).status_code == 400                  # առանց գարաժի հայտը չի գնահատվում
+
+# մեկ հայտ = մեկ կարծիք
+assert review(tok, went=True, rating=5, comment="Շատ լավ սպասարկում", display_name="Արամ").status_code == 201
+assert review(tok, went=True, rating=1).status_code == 409
+assert c.get(f"/review-info/{tok}").json()["already_reviewed"] is True
+
+# կրկնակի կարծիք նույն համարից նույն գարաժին (հեռախոսի տարբեր գրելաձևով)
+_, tok_dup = mk(R1, "091100001")
+assert review(tok_dup, went=True, rating=5).status_code == 409
+assert review(tok_dup, went=False, reason="far").status_code == 201
+
+
+# վարկանիշ. միջին, կարծիքների թիվ, «չգնացի»-ն չի հաշվվում
+g = c.get(f"/garages/{R1}").json()
+assert g["rating"] == {"avg": 5.0, "count": 1, "score": g["rating"]["score"]} and g["rating"]["score"] < 5.0   # Bayes-ը 1 կարծիքը մոտեցնում է միջինին
+for i, st in enumerate((4, 4, 3)):
+    _, t = mk(R1, f"+374 91 2000{i:02d}"); assert review(t, went=True, rating=st).status_code == 201
+g = c.get(f"/garages/{R1}").json()["rating"]
+assert g["count"] == 4 and g["avg"] == 4.0                                      # (5+4+4+3)/4
+# 20 կարծիք 4.7 միջինով՝ Rate Two
+for i in range(20):
+    _, t = mk(R2, f"+374 91 3000{i:02d}"); review(t, went=True, rating=5 if i % 3 else 4)
+g2 = c.get(f"/garages/{R2}").json()["rating"]
+assert g2["count"] == 20 and 4.5 <= g2["avg"] <= 4.8
+# 1 կարծիք 5.0-ով չի հաղթում շատ կարծիքով լավ գնահատականին
+_, solo = mk(R1, "+374 91 400001")
+R3 = c.post("/admin/garages", headers=H, json={"name": "Rate Solo"}).json()["id"]
+_, ts = mk(R3, "+374 91 400002"); review(ts, went=True, rating=5)
+solo = c.get(f"/garages/{R3}").json()["rating"]
+assert solo["avg"] == 5.0 and solo["count"] == 1 and solo["score"] < g2["score"], (solo, g2)
+assert c.get(f"/garages/{R3}").json()["rating"]["score"] < 5.0
+# անկարծիք գարաժ
+R4 = c.post("/admin/garages", headers=H, json={"name": "Rate None"}).json()["id"]
+assert c.get(f"/garages/{R4}").json()["rating"] == {"avg": None, "count": 0, "score": None}
+
+# հրապարակային կարծիքներ. առանց հեռախոսի, միայն «գնացի»
+pub = c.get(f"/garages/{R1}/reviews").json()
+assert len(pub) == 4 and pub[-1]["comment"] == "Շատ լավ սպասարկում" and pub[-1]["display_name"] == "Արամ"
+assert set(pub[0]) == {"rating", "comment", "display_name", "created_at", "service"}
+assert "091100001" not in str(pub) and "91 100001" not in str(pub)
+assert c.get("/garages/99999/reviews").status_code == 404
+
+# գարաժը չի տեսնում գաղտնի հղումը (հակառակ դեպքում կկարողանար կեղծ կարծիք գրել)
+d1 = c.get("/admin/data", headers=H1)
+assert "review_token" not in d1.text and tok not in d1.text
+assert "review_token" not in c.get("/admin/data", headers=H).text
+
+# ադմինի և գարաժի տեսածը
+ar = c.get("/admin/reviews", headers=H).json()
+assert any(r["went"] == 0 for r in ar["reviews"]) and any(r["went"] == 1 for r in ar["reviews"])
+r1v = c.get("/admin/reviews", headers=H1).json()
+assert [x["garage_id"] for x in r1v["ratings"]] == [R1] and r1v["ratings"][0]["count"] == 4
+assert all(r["garage_id"] == R1 and r["went"] == 1 and r["hidden"] == 0 for r in r1v["reviews"]) and len(r1v["reviews"]) == 4
+r2v = c.get("/admin/reviews", headers=H2).json()
+assert all(r["garage_id"] == R2 for r in r2v["reviews"])
+assert c.get("/admin/reviews").status_code == 401
+
+# մոդերացիա. միայն ադմինը, պատճառով
+rv_id = next(r["id"] for r in ar["reviews"] if r["garage_id"] == R1 and r["comment"] == "Շատ լավ սպասարկում")
+assert c.patch(f"/admin/reviews/{rv_id}", headers=H1, json={"hidden": True, "reason": "կեղծ"}).status_code == 403     # գարաժը չի կարող թաքցնել
+assert c.patch(f"/admin/reviews/{rv_id}", headers=H, json={"hidden": True}).status_code == 422
+assert c.patch("/admin/reviews/99999", headers=H, json={"hidden": True, "reason": "x"}).status_code == 404
+assert c.patch(f"/admin/reviews/{rv_id}", headers=H, json={"hidden": True, "reason": "կեղծ"}).status_code == 200
+g = c.get(f"/garages/{R1}").json()["rating"]
+assert g["count"] == 3 and g["avg"] == 3.7                                      # 5-ը հանվեց. (4+4+3)/3
+assert len(c.get(f"/garages/{R1}/reviews").json()) == 3
+assert len(c.get("/admin/reviews", headers=H1).json()["reviews"]) == 3          # գարաժը թաքցվածը չի տեսնում
+assert any(r["id"] == rv_id and r["hidden"] == 1 for r in c.get("/admin/reviews", headers=H).json()["reviews"])
+assert c.patch(f"/admin/reviews/{rv_id}", headers=H, json={"hidden": False}).status_code == 200
+assert c.get(f"/garages/{R1}").json()["rating"]["count"] == 4                   # վերականգնվեց
+
+# հաշվետվություն. վարորդի հաստատում և անհամապատասխանություն
+rid_m, tok_m = mk(R2, "+374 91 500001")
+assert c.patch(f"/admin/requests/{rid_m}", headers=H2, json={"status": "visited"}).status_code == 200   # գարաժը՝ «այցելեց»
+assert review(tok_m, went=False, reason="other_garage").status_code == 201                              # վարորդը՝ «չգնացի»
+rp = next(x for x in c.get("/admin/report", headers=H).json()["garages"] if x["garage_id"] == R2)
+assert rp["mismatch"] == 1 and rp["driver_no_visit"] == 1 and rp["confirmed_visits"] == 20, rp
+rp2 = c.get("/admin/report", headers=H2).json()["garages"][0]
+assert rp2["mismatch"] == 1                                                     # գարաժը նույնպես տեսնում է
+assert c.get("/admin/report", headers=H1).json()["garages"][0]["mismatch"] == 0
+
+# chat-ի քարտերը ցույց են տալիս գնահատականները
+queries.upsert_garage_service(R1, 1, 1000, 30); queries.upsert_garage_service(R2, 1, 2000, 30)
+cards = {x["garage_id"]: x for x in c.post("/chat", json={"messages": [{"role": "user", "content": "յուղ"}]}).json()["cards"]}
+assert cards[R1]["rating"]["count"] == 4 and cards[R2]["rating"]["count"] == 20 and cards[R2]["rating"]["avg"] >= 4.5
+assert c.get("/services/1/garages").json()[0]["garage"]["rating"]["count"] in (0, 4)
+
+# rate limit
+apimod.review_limiter.limit = 3; apimod.review_limiter.hits.clear()
+codes = [c.get("/review-info/nonexistent-token").status_code for _ in range(5)]
+assert codes[:3] == [404, 404, 404] and codes[3:] == [429, 429], codes
+apimod.review_limiter.limit = 1000
+print("Գնահատականների թեստերն անցան ✓")
 
 # =====================================================================
 # Հին բազայի migration (Փուլ 5-ի բազան չի կորչում)

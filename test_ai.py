@@ -38,8 +38,9 @@ anthropic.Anthropic = lambda: RealClient(api_key="fake", max_retries=0,
                                          http_client=httpx.Client(transport=httpx.MockTransport(handler)))
 
 # 1. Նորմալ հոսք՝ երկու գործիք, հետո վերջնական պատասխան
-text, mode = chat.reply([{"role": "user", "content": "արգելակելիս ճռռոց է լսվում"}])
+text, mode, cards = chat.reply([{"role": "user", "content": "արգելակելիս ճռռոց է լսվում"}])
 assert mode == "ai" and "14,000" in text, (mode, text)
+assert [(x["name"], x["price_amd"]) for x in cards][:1] == [("Speed Service", 14000)] and len(cards) == 3   # քարտերը գալիս են գործիքի արդյունքից
 assert len(calls) == 3
 assert "Կանոններ" in calls[0]["system"] and "Երևանում" in calls[0]["system"]      # system prompt-ը՝ ժամանակով
 assert {t["name"] for t in calls[0]["tools"]} == {"list_services", "garages_for_service", "garage_info"}
@@ -62,15 +63,15 @@ print("Գործիքների սխալները մշակվում են ✓")
 # 4. AI-ն անհասանելի է (օր.՝ սխալ բանալի, 401) -> անցնում է պարզ ռեժիմի
 def bad(request): return httpx.Response(401, json={"type": "error", "error": {"type": "authentication_error", "message": "invalid x-api-key"}})
 anthropic.Anthropic = lambda: RealClient(api_key="bad", max_retries=0, http_client=httpx.Client(transport=httpx.MockTransport(bad)))
-text, mode = chat.reply([{"role": "user", "content": "արգելակ ճռռոց"}])
-assert mode == "simple" and "անհասանելի" in text and "14,000" in text, (mode, text)
+text, mode, cards = chat.reply([{"role": "user", "content": "արգելակ ճռռոց"}])
+assert mode == "simple" and "անհասանելի" in text and cards[0]["price_amd"] == 14000, (mode, text)
 print("AI-ի անկման դեպքում fallback-ը աշխատում է ✓")
 
 # 5. Անվերջ գործիքային հանգույցից պաշտպանություն
 calls.clear()
 def loop(request): return msg([{"type": "tool_use", "id": "t", "name": "list_services", "input": {}}], "tool_use")
 anthropic.Anthropic = lambda: RealClient(api_key="x", max_retries=0, http_client=httpx.Client(transport=httpx.MockTransport(loop)))
-assert "Չհաջողվեց" in chat.ai_reply([{"role": "user", "content": "x"}])
+assert "Չհաջողվեց" in chat.ai_reply([{"role": "user", "content": "x"}])[0]
 print("Անվերջ հանգույցից պաշտպանությունը աշխատում է ✓")
 
 # 6. Օրական սահման. սահմանը անցնելիս AI-ը չի կանչվում (ծախս չկա), chat-ը շարունակում է աշխատել

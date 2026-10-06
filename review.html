@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="hy">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Գնահատեք գարաժը — AI Auto Service</title>
+<style>
+:root{--bg:#e9ebec;--panel:#fff;--ink:#1d2529;--mute:#5d6a71;--line:#cfd5d8;--acc:#1f5fbf;--accink:#fff;--star:#f2b705;--bad:#c0392b}
+@media(prefers-color-scheme:dark){:root{--bg:#171c1f;--panel:#222a2e;--ink:#eef1f2;--mute:#9aa7ad;--line:#38434a;--acc:#5b9bff;--accink:#0b1a30;--bad:#ff7b6b}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Noto Sans Armenian","Segoe UI",system-ui,sans-serif}
+main{max-width:480px;margin:0 auto;padding:20px}
+.brand{border-left:6px solid #f2b705;padding-left:10px;font-weight:700;margin-bottom:18px}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px}
+h1{font-size:20px;margin:0 0 4px}.sub{color:var(--mute);margin:0 0 18px}
+.row{display:flex;gap:10px}.row>*{flex:1}
+.btn{font:inherit;cursor:pointer;background:var(--acc);color:var(--accink);border:0;border-radius:10px;padding:12px 16px;font-weight:600;width:100%}
+.btn.g{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn:disabled{opacity:.5;cursor:default}
+.stars{display:flex;gap:6px;margin:6px 0 4px}
+.stars button{font-size:38px;line-height:1;background:none;border:0;cursor:pointer;color:var(--line);padding:2px}
+.stars button.on{color:var(--star)}
+label{display:block;margin-top:16px;font-size:14px;color:var(--mute)}
+textarea,input,select{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:6px}
+.hide{display:none!important}.err{color:var(--bad);font-size:14px;margin-top:10px}.note{font-size:13px;color:var(--mute);margin-top:12px}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+</style>
+</head>
+<body>
+<main>
+  <div class="brand">AI Auto Service</div>
+  <div class="box" id="box"><p class="sub">Բեռնվում է…</p></div>
+</main>
+<script>
+const token=location.pathname.split("/").filter(Boolean).pop();
+const box=document.getElementById("box");
+let went=null,rating=0;
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function forget(){ // հեռացնել chat-ի հիշեցումը այս հղումի համար
+  try{const k="pending_reviews",l=JSON.parse(localStorage.getItem(k)||"[]").filter(x=>x.url!==location.pathname);localStorage.setItem(k,JSON.stringify(l))}catch(e){}
+}
+function msg(title,text){box.innerHTML=`<h1>${esc(title)}</h1><p class="sub">${esc(text)}</p>`}
+const REASONS={price:"Թանկ էր",far:"Հեռու էր",other_garage:"Գնացի այլ գարաժ",no_time:"Ժամը չհամապատասխանեց",changed_mind:"Այլևս պետք չեղավ",other:"Այլ պատճառ"};
+
+async function init(){
+  let r;try{r=await fetch("/review-info/"+encodeURIComponent(token))}catch(e){return msg("Սերվերը չպատասխանեց","Փորձեք մի փոքր հետո։")}
+  if(r.status===404)return msg("Հղումը անվավեր է","Ստուգեք, որ հղումը ամբողջությամբ պատճենել եք։");
+  if(r.status===429)return msg("Շատ հարցումներ","Փորձեք մի փոքր հետո։");
+  const d=await r.json();
+  if(!d.has_garage)return msg("Այս հայտը գարաժի չի նշանակված","Գնահատել հնարավոր չէ։");
+  if(d.already_reviewed){forget();return msg("Շնորհակալություն","Այս այցի համար կարծիքը արդեն թողնված է։")}
+  box.innerHTML=`<h1>${esc(d.garage)}</h1><p class="sub">${esc(d.service||"Ձեր հայտը")}</p>
+  <p style="margin:0 0 12px"><b>Գնացի՞ք այս գարաժ։</b></p>
+  <div class="row"><button class="btn" id="yes">Այո, գնացի</button><button class="btn g" id="no">Ոչ, չգնացի</button></div>
+  <div id="yesForm" class="hide">
+    <label>Ինչպե՞ս գնահատեք սպասարկումը</label>
+    <div class="stars" role="radiogroup" aria-label="Գնահատական">${[1,2,3,4,5].map(i=>`<button type="button" data-s="${i}" role="radio" aria-checked="false" aria-label="${i} աստղ">★</button>`).join("")}</div>
+    <label>Կարծիք (ցանկության դեպքում)<textarea id="comment" rows="3" maxlength="500" placeholder="Գինը, արագությունը, վերաբերմունքը…"></textarea></label>
+    <label>Անուն (ցանկության դեպքում)<input id="dname" maxlength="30" placeholder="Օր.՝ Արամ"></label>
+    <p class="note">Ձեր հեռախոսահամարը չի հրապարակվում։ Կարծիքը և գնահատականը տեսանելի կլինեն այլ վարորդներին։</p>
+  </div>
+  <div id="noForm" class="hide">
+    <label>Ինչու չգնացիք<select id="reason"><option value="">— ընտրեք —</option>${Object.entries(REASONS).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select></label>
+    <p class="note">Սա ընդամենը օգնում է բարելավել առաջարկները. հրապարակային չէ։</p>
+  </div>
+  <div id="err" class="err" role="alert"></div>
+  <button class="btn hide" id="send" style="margin-top:16px">Ուղարկել</button>`;
+  document.getElementById("yes").onclick=()=>pick(true);
+  document.getElementById("no").onclick=()=>pick(false);
+  document.querySelectorAll(".stars button").forEach(b=>b.onclick=()=>{rating=+b.dataset.s;paint()});
+  document.getElementById("send").onclick=send;
+}
+function paint(){document.querySelectorAll(".stars button").forEach(b=>{const on=+b.dataset.s<=rating;b.classList.toggle("on",on);b.setAttribute("aria-checked",+b.dataset.s===rating)})}
+function pick(v){
+  went=v;document.getElementById("yesForm").classList.toggle("hide",!v);document.getElementById("noForm").classList.toggle("hide",v);
+  document.getElementById("send").classList.remove("hide");document.getElementById("err").textContent="";
+  document.getElementById("yes").classList.toggle("g",!v);document.getElementById("no").classList.toggle("g",v);
+}
+async function send(){
+  const err=document.getElementById("err"),btn=document.getElementById("send");err.textContent="";
+  const body={went};
+  if(went){if(!rating){err.textContent="Ընտրեք աստղերի քանակը։";return}
+    body.rating=rating;body.comment=document.getElementById("comment").value.trim();body.display_name=document.getElementById("dname").value.trim()}
+  else{const rs=document.getElementById("reason").value;if(!rs){err.textContent="Ընտրեք պատճառը։";return}body.reason=rs}
+  btn.disabled=true;
+  try{
+    const r=await fetch("/reviews/"+encodeURIComponent(token),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    if(r.status===201){forget();return msg("Շնորհակալություն","Ձեր կարծիքը պահվեց։ Այն կօգնի այլ վարորդներին։")}
+    let m="Սխալ "+r.status;try{const j=await r.json();if(typeof j.detail==="string")m=j.detail}catch(e){}
+    if(r.status===409)forget();
+    err.textContent=m;
+  }catch(e){err.textContent="Սերվերը չպատասխանեց։"}
+  btn.disabled=false;
+}
+init();
+</script>
+</body>
+</html>

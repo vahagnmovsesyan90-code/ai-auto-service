@@ -29,8 +29,29 @@ CREATE TABLE IF NOT EXISTS requests (           -- վարորդների հայտ
     decline_reason TEXT
         CHECK (decline_reason IS NULL OR decline_reason IN ('price','far','other_garage','no_time','changed_mind','other')),
     status_changed_at TEXT,                      -- UTC
-    first_response_at TEXT                       -- UTC. առաջին անգամ «նոր»-ից դուրս գալու պահը
+    first_response_at TEXT,                      -- UTC. առաջին անգամ «նոր»-ից դուրս գալու պահը
+    review_token TEXT                            -- վարորդի գաղտնի հղում՝ գնահատելու համար (գարաժը չի տեսնում)
 );
+"""
+
+REVIEWS_DDL = """
+CREATE TABLE IF NOT EXISTS reviews (             -- վարորդի հաստատումը և գնահատականը (մեկ հայտ = մեկ կարծիք)
+    id INTEGER PRIMARY KEY,
+    request_id INTEGER NOT NULL UNIQUE REFERENCES requests(id) ON DELETE CASCADE,
+    garage_id INTEGER NOT NULL REFERENCES garages(id) ON DELETE CASCADE,
+    service_id INTEGER REFERENCES services(id) ON DELETE SET NULL,
+    phone_key TEXT NOT NULL,                     -- հեռախոսի վերջին 8 թվանշանը՝ կրկնակի կարծիքներից պաշտպանվելու համար
+    went INTEGER NOT NULL CHECK (went IN (0, 1)),
+    rating INTEGER CHECK (rating BETWEEN 1 AND 5),
+    comment TEXT NOT NULL DEFAULT '',
+    reason TEXT CHECK (reason IS NULL OR reason IN ('price','far','other_garage','no_time','changed_mind','other')),
+    display_name TEXT NOT NULL DEFAULT '',
+    hidden INTEGER NOT NULL DEFAULT 0,
+    hidden_reason TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CHECK ((went = 1 AND rating IS NOT NULL) OR (went = 0 AND rating IS NULL))
+);
+CREATE INDEX IF NOT EXISTS ix_reviews_garage ON reviews(garage_id);
 """
 
 SCHEMA = """
@@ -91,6 +112,10 @@ def _migrate(conn: sqlite3.Connection) -> None:
             SELECT id, created_at, name, phone, garage_id, service_id, message,
                    CASE status WHEN 'done' THEN 'called' ELSE status END FROM requests_old;
             DROP TABLE requests_old;""")
+    rcols = {r[1] for r in conn.execute("PRAGMA table_info(requests)")}
+    if "review_token" not in rcols:
+        conn.execute("ALTER TABLE requests ADD COLUMN review_token TEXT")
+    conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_requests_review_token ON requests(review_token) WHERE review_token IS NOT NULL")
     conn.commit()
 
 
@@ -102,6 +127,7 @@ def connect() -> sqlite3.Connection:
     if str(DB_PATH) not in _ready:
         conn.executescript(SCHEMA.replace("{REQUESTS_DDL}", REQUESTS_DDL))
         _migrate(conn)
+        conn.executescript(REVIEWS_DDL)   # միայն requests-ի վերակառուցումից հետո, որպեսզի FK-ները չկոտրվեն
         if (os.getenv("SEED_SAMPLE", "1") == "1"
                 and conn.execute("SELECT COUNT(*) FROM services").fetchone()[0] == 0):
             seed(conn)

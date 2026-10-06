@@ -18,7 +18,9 @@ import admin
 import chat as chat_engine
 import queries
 import telegram
-from auth import chat_limiter, rate_limit, request_limiter
+from typing import Literal
+
+from auth import RateLimiter, chat_limiter, rate_limit, request_limiter
 from queries import (all_garages, all_services, find_services, garages_for_service, get_garage,
                      get_service, is_open, open_garages)
 
@@ -49,12 +51,19 @@ class DayHours(BaseModel):
     close: time
 
 
+class RatingOut(BaseModel):
+    avg: float | None = None     # միջին (1-5), None՝ եթե կարծիք չկա
+    count: int = 0
+    score: float | None = None   # Bayes-ի միջին՝ դասավորելու համար
+
+
 class GarageOut(BaseModel):
     id: int
     name: str
     address: str
     phone: str
     hours: list[DayHours]
+    rating: RatingOut = RatingOut()
 
 
 class OfferOut(BaseModel):
@@ -63,9 +72,11 @@ class OfferOut(BaseModel):
     duration_min: int
 
 
-def garage_out(g: Garage) -> GarageOut:
+def garage_out(g: Garage, ratings: dict | None = None) -> GarageOut:
+    ratings = queries.garage_ratings() if ratings is None else ratings
     return GarageOut(
         id=g.id, name=g.name, address=g.address, phone=g.phone,
+        rating=RatingOut(**queries.rating_of(ratings, g.id)),
         hours=[DayHours(day=DAY_NAMES[d], open=o, close=c)
                for d, (o, c) in sorted(g.hours.items())],
     )
@@ -97,24 +108,26 @@ def garages_by_service(service_id: int, open_now: bool = False):
     if get_service(service_id) is None:
         raise HTTPException(404, "Ծառայությունը չի գտնվել")
     now = datetime.now(TZ)
-    offers = []
+    offers, ratings = [], queries.garage_ratings()
     for g, price in garages_for_service(service_id):
         if open_now and not is_open(g, now):
             continue
-        offers.append(OfferOut(garage=garage_out(g), price=price,
+        offers.append(OfferOut(garage=garage_out(g, ratings), price=price,
                                duration_min=g.services[service_id].duration_min))
     return offers
 
 
 @app.get("/garages", response_model=list[GarageOut])
 def list_garages():
-    return [garage_out(g) for g in all_garages()]
+    ratings = queries.garage_ratings()
+    return [garage_out(g, ratings) for g in all_garages()]
 
 
 @app.get("/garages/open", response_model=list[GarageOut])
 def garages_open_now():
     """Գարաժները, որոնք բաց են հիմա (Երևանի ժամանակով)։"""
-    return [garage_out(g) for g in open_garages(datetime.now(TZ))]
+    ratings = queries.garage_ratings()
+    return [garage_out(g, ratings) for g in open_garages(datetime.now(TZ))]
 
 
 @app.get("/garages/{garage_id}", response_model=GarageOut)
@@ -135,9 +148,24 @@ class ChatRequest(BaseModel):
     messages: list[Message]
 
 
+class CardOut(BaseModel):
+    """Գարաժի առաջարկ chat-ի քարտի համար."""
+    garage_id: int
+    name: str
+    address: str
+    phone: str
+    service_id: int
+    service_name: str
+    price_amd: int
+    duration_min: int
+    open_now: bool
+    rating: RatingOut
+
+
 class ChatResponse(BaseModel):
     reply: str
     mode: str  # "ai" կամ "simple"
+    cards: list[CardOut] = []
 
 
 @app.post("/chat", response_model=ChatResponse)
@@ -146,8 +174,8 @@ def chat(req: ChatRequest, request: Request):
     msgs = [m.model_dump() for m in req.messages[-20:]]  # վերջին 20 հաղորդագրությունը
     if not msgs or msgs[-1]["role"] != "user" or not msgs[-1]["content"].strip():
         raise HTTPException(400, "Վերջին հաղորդագրությունը պետք է լինի օգտատիրոջից")
-    text, mode = chat_engine.reply(msgs)
-    return ChatResponse(reply=text, mode=mode)
+    text, mode, cards = chat_engine.reply(msgs)
+    return ChatResponse(reply=text, mode=mode, cards=cards)
 
 
 @app.get("/app", include_in_schema=False)
@@ -173,7 +201,9 @@ def create_request(body: RequestIn, request: Request):
     if rid is None:
         raise HTTPException(400, "Գարաժը կամ ծառայությունը գոյություն չունի")
     telegram.notify_request(rid)  # գարաժին (եթե կապված է) և գլխավոր ադմինին
-    return {"id": rid}
+    row = queries.request_row(rid)
+    # review_url-ը տրվում է միայն վարորդին (գարաժը այն չի տեսնում), որպեսզի կարծիքները չկեղծվեն
+    return {"id": rid, "garage": row["garage"], "review_url": f"/review/{row['review_token']}" if row["garage_id"] else None}
 
 
 @app.get("/panel", include_in_schema=False)
@@ -193,3 +223,63 @@ async def telegram_webhook(request: Request,
     except Exception as e:  # Telegram-ին միշտ 200, որպեսզի նույն update-ը անվերջ չկրկնի
         print("Webhook սխալ:", type(e).__name__, e)
     return {"ok": True}
+
+
+# ---- Գնահատականներ (վարորդի կողմից) -------------------------------------------
+review_limiter = RateLimiter(10)
+
+
+class ReviewIn(BaseModel):
+    went: bool
+    rating: int | None = Field(default=None, ge=1, le=5)
+    comment: str = Field(default="", max_length=500)
+    reason: Literal["price", "far", "other_garage", "no_time", "changed_mind", "other"] | None = None
+    display_name: str = Field(default="", max_length=30)
+
+
+class ReviewOut(BaseModel):
+    rating: int
+    comment: str
+    display_name: str
+    created_at: str
+    service: str | None = None
+
+
+@app.get("/garages/{garage_id}/reviews", response_model=list[ReviewOut])
+def garage_reviews(garage_id: int):
+    """Գարաժի հրապարակային կարծիքները (վերջին 20-ը, թաքցվածները՝ ոչ)։"""
+    if get_garage(garage_id) is None:
+        raise HTTPException(404, "Գարաժը չի գտնվել")
+    return queries.public_reviews(garage_id)
+
+
+@app.get("/review-info/{token}")
+def review_info(token: str, request: Request):
+    rate_limit(review_limiter, request)
+    ctx = queries.review_context(token)
+    if ctx is None:
+        raise HTTPException(404, "Հղումը անվավեր է")
+    return {"garage": ctx["garage"], "service": ctx["service"], "already_reviewed": ctx["review_id"] is not None,
+            "has_garage": ctx["garage_id"] is not None}
+
+
+@app.post("/reviews/{token}", status_code=201)
+def post_review(token: str, body: ReviewIn, request: Request):
+    """Վարորդը հաստատում է՝ գնաց թե ոչ. եթե այո՝ գնահատում է (1-5), եթե ոչ՝ նշում է պատճառը։"""
+    rate_limit(review_limiter, request)
+    if body.went and body.rating is None:
+        raise HTTPException(422, "Նշեք գնահատականը (1-5)")
+    if not body.went and body.reason is None:
+        raise HTTPException(422, "Նշեք, թե ինչու չգնացիք")
+    res = queries.create_review(token, body.went, body.rating, body.comment.strip(), body.reason, body.display_name.strip())
+    messages = {"notfound": (404, "Հղումը անվավեր է"), "nogarage": (400, "Այս հայտը գարաժի չի նշանակված"),
+                "already": (409, "Այս հայտի համար արդեն թողնվել է կարծիք"),
+                "duplicate": (409, "Դուք վերջերս արդեն գնահատել եք այս գարաժը")}
+    if res != "ok":
+        raise HTTPException(*messages[res])
+    return {"ok": True}
+
+
+@app.get("/review/{token}", include_in_schema=False)
+def review_page(token: str):
+    return FileResponse(Path(__file__).parent / "review.html")

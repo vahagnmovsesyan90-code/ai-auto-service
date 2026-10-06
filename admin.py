@@ -292,3 +292,31 @@ def report(month: str | None = Query(default=None, pattern=r"^\d{4}-(0[1-9]|1[0-
     utc = lambda d: d.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     data = q.request_report(utc(start), utc(end), user.garage_id if user.role == "garage" else None)
     return {"month": f"{y}-{mo:02d}", **data}
+
+
+# ---- Կարծիքներ ----
+class HideIn(BaseModel):
+    hidden: bool
+    reason: str | None = Field(default=None, max_length=100)
+
+
+@router.get("/reviews")
+def reviews(user: Identity = Depends(require_user)):
+    """Ադմինին՝ բոլոր կարծիքները (նաև թաքցվածները և «չգնացի»-ները), գարաժին՝ միայն իր հրապարակայինները։"""
+    gid = user.garage_id if user.role == "garage" else None
+    ratings = q.garage_ratings()
+    return {
+        "ratings": [{"garage_id": g.id, "name": g.name, **q.rating_of(ratings, g.id)}
+                    for g in q.all_garages() if gid is None or g.id == gid],
+        "reviews": q.admin_reviews(gid, is_admin=user.role == "admin"),
+    }
+
+
+@router.patch("/reviews/{review_id}")
+def hide_review(review_id: int, body: HideIn, user: Identity = Depends(require_user)):
+    """Միայն ադմինը կարող է թաքցնել կարծիք (կեղծ կամ վիրավորական)։ Գարաժը՝ ոչ։"""
+    need_admin(user)
+    if body.hidden and not (body.reason or "").strip():
+        raise HTTPException(422, "Նշեք թաքցնելու պատճառը")
+    found(q.set_review_hidden(review_id, body.hidden, (body.reason or "").strip() or None), "Կարծիքը")
+    return {"ok": True}

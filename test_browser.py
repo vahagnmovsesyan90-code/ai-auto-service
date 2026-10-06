@@ -33,31 +33,48 @@ try:
         page.goto(BASE + "/app")
         expect(page.locator(".m.bot").first).to_contain_text("Բարև")
         page.get_by_role("button", name="Արգելակելիս ճռռոց է լսվում").click()
-        expect(page.locator(".m.bot").nth(1)).to_contain_text("14,000")
+        first = page.locator(".m.bot").nth(1)
+        expect(first).to_contain_text("14,000"); expect(first.locator(".gc")).to_have_count(3)
+        expect(first.locator(".gc").first).to_contain_text("Speed Service")                 # ամենաէժանը առաջինն է
+        expect(first.locator(".gc").first).to_contain_text("Դեռ գնահատականներ չկան")
+        expect(first.locator(".gc").first.get_by_role("button", name="Թողնել հայտ")).to_be_visible()
+        assert page.locator("#reqBtn").count() == 0                                          # վերևի ընդհանուր կոճակը վերացել է
         expect(page.locator("#mode")).to_contain_text("Պարզ ռեժիմ")
         assert page.locator("#hint").is_hidden()                              # հուշումները թաքնվում են
+        first.locator(".gc").first.get_by_role("button", name="Կարծիքներ").click()
+        expect(first.locator(".revs").first).to_contain_text("Կարծիքներ դեռ չկան")
         page.fill("#in", "օդորակիչը չի սառեցնում"); page.press("#in", "Enter")
         expect(page.locator(".m.bot").nth(2)).to_contain_text("Օդորակիչի լիցքավորում")
+        expect(page.locator(".m.bot").nth(2).locator(".gc")).to_have_count(1)
         page.fill("#in", "բլա բլա"); page.click("#send")
-        expect(page.locator(".m.bot").nth(3)).to_contain_text("Չհասկացա")
+        expect(page.locator(".m.bot").nth(3)).to_contain_text("Չհասկացա"); expect(page.locator(".m.bot").nth(3).locator(".gc")).to_have_count(0)
         assert page.locator(".m.me").count() == 3
         page.screenshot(path="shots/chat.png")
-        print("Chat-ը (հարցում, Enter, հուշումներ, ռեժիմ) ✓")
+        print("Chat-ը (հարցում, քարտեր, Enter, հուշումներ, ռեժիմ) ✓")
 
-        # հայտի ձևը
-        page.click("#reqBtn"); expect(page.locator("#dlg")).to_be_visible()
-        expect(page.locator("#rg option")).to_have_count(4)                   # «ընտրված չէ» + 3 գարաժ
-        expect(page.locator("#rs option")).to_have_count(7)
+        # «Թողնել հայտ»՝ հենց Garage Kentron-ի քարտից (գարաժը և ծառայությունը արդեն լրացված են)
+        page.fill("#in", "կախոցի թակոց"); page.press("#in", "Enter")
+        susp = page.locator(".m.bot").nth(4)
+        expect(susp.locator(".gc")).to_have_count(2)
+        susp.get_by_role("button", name="Գնահատականով").click()                              # դասավորման փոխարկիչ
+        expect(susp.locator(".sort button.on")).to_have_text("Գնահատականով")
+        susp.locator(".gc", has_text="Garage Kentron").get_by_role("button", name="Թողնել հայտ").click()
+        expect(page.locator("#dlg")).to_be_visible(); expect(page.locator("#dlgFor")).to_have_text("Garage Kentron · Կախոցի ստուգում")
+        assert page.locator("#rg").count() == 0                                              # գարաժ ընտրելու դաշտ այլևս չկա
         page.click("#rsend"); expect(page.locator("#rerr")).to_contain_text("Լրացրեք")
         page.fill("#rp", "abcdefgh"); page.fill("#rn", "Արամ")
         page.click("#rsend"); expect(page.locator("#rerr")).to_contain_text("Ստուգեք հեռախոսի")   # սերվերի 422
-        page.fill("#rp", "+374 91 123456"); page.select_option("#rg", "2"); page.select_option("#rs", "5")
-        page.fill("#rm", "Վաղը առավոտյան")
+        page.fill("#rp", "+374 91 123456"); page.fill("#rm", "Վաղը առավոտյան")
         page.screenshot(path="shots/dialog.png")
         page.click("#rsend")
         expect(page.locator("#dlg")).not_to_be_visible()
-        expect(page.locator(".m.bot").last).to_contain_text("Հայտը ուղարկված է")
-        print("Հայտի ձևը (վալիդացիա, ուղարկում) ✓")
+        sent_msg = page.locator(".m.bot").last
+        expect(sent_msg).to_contain_text("Հայտը ուղարկված է «Garage Kentron»-ին")
+        review_url = sent_msg.locator("a.lnk").get_attribute("href")
+        assert review_url.startswith("/review/") and len(review_url) > 20, review_url
+        assert len(page.evaluate("JSON.parse(localStorage.getItem('pending_reviews'))")) == 1
+        page.screenshot(path="shots/chat_after_request.png")
+        print("«Թողնել հայտ» քարտից (լրացված գարաժ/ծառայություն, վալիդացիա, գնահատման հղում) ✓")
 
         # ================= ԱԴՄԻՆ =================
         a = ctx.new_page()
@@ -207,10 +224,75 @@ try:
         a.click("#out")
         print("Գարաժի սեփականատիրոջ պանել (միայն իրենը, առանց ադմինի գործիքների) ✓")
 
+        # --- Վարորդի գնահատում ---
+        v = ctx.new_page()
+        v.on("pageerror", lambda e: errors.append("review pageerror: " + str(e)))
+        v.goto(BASE + review_url)
+        expect(v.locator("#box h1")).to_have_text("Garage Kentron"); expect(v.locator("#box")).to_contain_text("Կախոցի ստուգում")
+        v.get_by_role("button", name="Այո, գնացի").click()
+        v.click("#send"); expect(v.locator("#err")).to_contain_text("աստղերի")               # առանց աստղերի չի ուղարկվում
+        v.get_by_role("radio", name="4 աստղ").click()
+        expect(v.get_by_role("radio", name="4 աստղ")).to_have_attribute("aria-checked", "true")
+        v.fill("#comment", "Արագ և ազնիվ <b>bold</b>"); v.fill("#dname", "Արամ")
+        v.screenshot(path="shots/review_form.png")
+        v.click("#send"); expect(v.locator("#box")).to_contain_text("Շնորհակալություն")
+        v.reload(); expect(v.locator("#box")).to_contain_text("արդեն թողնված")                # մեկ հայտ = մեկ կարծիք
+        v.goto(BASE + "/review/not-a-real-token"); expect(v.locator("#box")).to_contain_text("անվավեր")
+        assert page.evaluate("JSON.parse(localStorage.getItem('pending_reviews')||'[]')") == []   # հիշեցումը հանվել է
+
+        # chat-ում քարտը ցույց է տալիս գնահատականը և կարծիքը (HTML-ը էկրանավորված է)
+        page.reload(); page.fill("#in", "կախոցի թակոց"); page.press("#in", "Enter")
+        kc = page.locator(".m.bot").last.locator(".gc", has_text="Garage Kentron")
+        expect(kc).to_contain_text("★ 4.0"); expect(kc).to_contain_text("1 կարծիք (քիչ կարծիք)")
+        expect(page.locator(".m.bot").last.locator(".gc", has_text="Speed Service")).to_contain_text("Դեռ գնահատականներ չկան")
+        kc.get_by_role("button", name="Կարծիքներ").click()
+        expect(kc.locator(".revs")).to_contain_text("Արագ և ազնիվ <b>bold</b>"); expect(kc.locator(".revs")).to_contain_text("Արամ")
+        assert kc.locator(".revs b", has_text="bold").count() == 0                           # XSS չկա
+        page.screenshot(path="shots/chat_ratings.png")
+
+        # երկրորդ հայտ (Speed Service)՝ հիշեցման բաններ և «չգնացի»
+        page.evaluate("localStorage.setItem('remind_after_ms','0')")
+        spd = page.locator(".m.bot").last.locator(".gc", has_text="Speed Service")
+        spd.get_by_role("button", name="Թողնել հայտ").click()
+        page.fill("#rn", "Նարե"); page.fill("#rp", "+374 99 765432"); page.click("#rsend")
+        expect(page.locator("#dlg")).not_to_be_visible()
+        url2 = page.locator(".m.bot").last.locator("a.lnk").get_attribute("href")
+        page.reload()
+        expect(page.locator(".rb")).to_have_count(1); expect(page.locator(".rb")).to_contain_text("Speed Service")
+        expect(page.locator(".rb a")).to_have_attribute("href", url2)
+        page.locator(".rb").get_by_role("button", name="Փակել").click(); expect(page.locator(".rb")).to_have_count(0)
+        v.goto(BASE + url2); v.get_by_role("button", name="Ոչ, չգնացի").click()
+        v.click("#send"); expect(v.locator("#err")).to_contain_text("պատճառը")
+        v.select_option("#reason", "price"); v.click("#send"); expect(v.locator("#box")).to_contain_text("Շնորհակալություն")
+        print("Վարորդի գնահատում (այո/ոչ, մեկանգամյա, հիշեցում, քարտերում վարկանիշ) ✓")
+
+        # --- Ադմինը տեսնում է կարծիքները և թաքցնում է մեկը ---
+        a.fill("#lg", ""); a.fill("#pw", "pw"); a.click("#go"); expect(a.locator("#app")).to_be_visible()
+        a.click("[data-t=reviews]")
+        expect(a.locator("#main")).to_contain_text("★ 4.0"); expect(a.locator("#main")).to_contain_text("Արագ և ազնիվ")
+        expect(a.locator("#main")).to_contain_text("Չգնաց՝ Թանկ է")                          # ադմինը տեսնում է նաև «չգնացի»-ները
+        a.get_by_role("button", name="Թաքցնել").click(); expect(a.locator("#toast")).to_contain_text("Ընտրեք թաքցնելու պատճառը")
+        a.locator("[data-hr]").select_option("Կեղծ"); a.get_by_role("button", name="Թաքցնել").click()
+        expect(a.locator("#main")).to_contain_text("Թաքցված՝ Կեղծ")
+        page.reload(); page.fill("#in", "կախոցի թակոց"); page.press("#in", "Enter")
+        expect(page.locator(".m.bot").last.locator(".gc", has_text="Garage Kentron")).to_contain_text("Դեռ գնահատականներ չկան")   # թաքցվածը չի հաշվվում
+        a.click("[data-t=report]"); expect(a.locator("#main")).to_contain_text("Վարորդի հաստատած այցեր")
+        a.click("#out")
+        # գարաժի սեփականատերը՝ միայն իր հրապարակային կարծիքները, առանց թաքցնելու հնարավորության
+        a.fill("#lg", "kentron"); a.fill("#pw", "kentron-pass-1"); a.click("#go"); expect(a.locator("#who")).to_have_text("Garage Kentron")
+        a.click("[data-t=reviews]")
+        expect(a.locator("#main")).to_contain_text("Կարծիքներ դեռ չկան"); expect(a.locator("#main")).not_to_contain_text("Չգնաց")
+        assert a.locator("[data-hide]").count() == 0
+        a.click("#out")
+        print("Ադմինի մոդերացիա, գարաժի տեսածը ✓")
+
         # Մոբայլ
         m = b.new_context(viewport={"width": 375, "height": 720}).new_page()
-        m.goto(BASE + "/app"); m.screenshot(path="shots/chat_mobile.png")
+        m.goto(BASE + "/app"); m.fill("#in", "արգելակ ճռռոց"); m.press("#in", "Enter")
+        expect(m.locator(".gc").first).to_be_visible(); m.screenshot(path="shots/chat_mobile.png")
         assert m.evaluate("document.documentElement.scrollWidth") <= 376, "chat-ը հորիզոնական scroll ունի մոբայլում"
+        m.locator(".gc").first.get_by_role("button", name="Թողնել հայտ").click(); expect(m.locator("#dlg")).to_be_visible()
+        assert m.evaluate("document.documentElement.scrollWidth") <= 376; m.click("#rcancel")
         m.goto(BASE + "/panel"); m.fill("#pw", "pw"); m.click("#go"); expect(m.locator("#app")).to_be_visible()
         m.click("[data-t=garages]"); m.screenshot(path="shots/admin_mobile.png")
         print("Մոբայլ տեսք ✓ (admin scrollWidth=%s)" % m.evaluate("document.documentElement.scrollWidth"))
