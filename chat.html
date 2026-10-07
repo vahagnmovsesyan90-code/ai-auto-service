@@ -4,6 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AI Auto Service — Chat</title>
+<link rel="manifest" href="/manifest-app.webmanifest">
+<meta name="theme-color" content="#1d2529">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Auto Service">
 <style>
 :root{--bg:#e9ebec;--panel:#fff;--ink:#1d2529;--mute:#5d6a71;--line:#cfd5d8;--acc:#1f5fbf;--accink:#fff;--me:#1d2529;--meink:#fff;--star:#d99a00;--bad:#c0392b}
 @media(prefers-color-scheme:dark){:root{--bg:#171c1f;--panel:#222a2e;--ink:#eef1f2;--mute:#9aa7ad;--line:#38434a;--acc:#5b9bff;--accink:#0b1a30;--me:#5b9bff;--meink:#0b1a30;--star:#f2b705;--bad:#ff7b6b}}
@@ -11,6 +16,7 @@
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Noto Sans Armenian","Segoe UI",system-ui,sans-serif;display:flex;flex-direction:column;height:100vh}
 header{padding:14px 18px;border-bottom:1px solid var(--line);background:var(--panel);display:flex;justify-content:space-between;align-items:center}
 header b{border-left:6px solid #f2b705;padding-left:10px}#mode{font-size:12px;color:var(--mute)}
+.inst{font:inherit;font-size:13px;cursor:pointer;border:1px solid var(--acc);background:transparent;color:var(--acc);border-radius:14px;padding:3px 12px;margin-left:8px}
 #banner{max-width:760px;width:100%;margin:0 auto;padding:10px 18px 0}
 .rb{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-left:5px solid #f2b705;border-radius:8px;padding:10px 12px;margin-bottom:8px}
 .rb span{flex:1;min-width:180px}.rb a,.rb button{font:inherit;font-size:13px;border-radius:14px;padding:4px 12px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer;text-decoration:none}
@@ -56,7 +62,7 @@ dialog input,dialog textarea{width:100%}
 </style>
 </head>
 <body>
-<header><b>AI Auto Service</b><span id="mode"></span></header>
+<header><b>AI Auto Service</b><span><span id="mode"></span> <button id="install" class="inst" hidden>Տեղադրել հավելվածը</button></span></header>
 <div id="banner"></div>
 <div id="log"></div>
 <div class="hint" id="hint"></div>
@@ -188,6 +194,21 @@ add("Բարև։ Նկարագրեք մեքենայի խնդիրը, և ես կգտ
 ["Արգելակելիս ճռռոց է լսվում","Օդորակիչը չի սառեցնում","Ո՞ր գարաժն է հիմա բաց"].forEach(t=>{const b=document.createElement("button");b.textContent=t;b.onclick=()=>send(t);$$("hint").appendChild(b)});
 btn.onclick=()=>send();inp.addEventListener("keydown",e=>{if(e.key==="Enter")send()});
 banner();
+
+// ---- Տեղադրվող հավելված (PWA) ----
+if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));
+let deferredInstall=null;const inst=$$("install");
+addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e;inst.hidden=false});
+inst.onclick=async()=>{if(!deferredInstall)return;deferredInstall.prompt();try{await deferredInstall.userChoice}catch(e){}deferredInstall=null;inst.hidden=true};
+addEventListener("appinstalled",()=>{inst.hidden=true});
+(function iosHint(){ // iOS-ում «Տեղադրել» կոճակ չկա. ցույց ենք տալիս քայլերը
+  const ios=/iPad|iPhone|iPod/.test(navigator.userAgent),standalone=navigator.standalone||matchMedia("(display-mode: standalone)").matches;
+  if(!ios||standalone||store.get("ios_hint_dismissed",false))return;
+  const d=document.createElement("div");d.className="rb";
+  const s=document.createElement("span");s.textContent="Տեղադրեք հավելվածը. Safari-ում սեղմեք «Share» (կիսվել), ապա «Add to Home Screen»։";
+  const c=document.createElement("button");c.textContent="Փակել";c.onclick=()=>{store.set("ios_hint_dismissed",true);d.remove()};
+  d.append(s,c);$$("banner").append(d);
+})();
 </script>
 </body>
 </html>
