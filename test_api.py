@@ -491,36 +491,6 @@ apimod.review_limiter.limit = 1000
 print("Գնահատականների թեստերն անցան ✓")
 
 # =====================================================================
-# Տեղադրվող հավելված (PWA). manifest, պատկերակներ, service worker
-# =====================================================================
-import struct
-for path, start, app_id in (("/manifest-app.webmanifest", "/app", "/app"), ("/manifest-panel.webmanifest", "/panel", "/panel")):
-    r = c.get(path)
-    assert r.status_code == 200 and r.headers["content-type"].startswith("application/manifest+json")
-    mf = r.json()
-    assert mf["start_url"] == start and mf["id"] == app_id and mf["display"] == "standalone" and mf["scope"] == "/"
-    assert mf["name"] and mf["short_name"] and mf["theme_color"].startswith("#") and mf["lang"] == "hy"
-    sizes = {(i["sizes"], i["purpose"]) for i in mf["icons"]}
-    assert {("192x192", "any"), ("512x512", "any"), ("512x512", "maskable")} <= sizes          # Chrome-ի տեղադրման պայմանները
-assert c.get("/manifest-app.webmanifest").json()["id"] != c.get("/manifest-panel.webmanifest").json()["id"]   # երկու առանձին հավելված
-def png_size(data):
-    assert data[:8] == b"\x89PNG\r\n\x1a\n"
-    return struct.unpack(">II", data[16:24])
-for name, size in (("icon-192.png", 192), ("icon-512.png", 512), ("icon-maskable-512.png", 512), ("apple-touch-icon.png", 180)):
-    r = c.get("/icons/" + name)
-    assert r.status_code == 200 and r.headers["content-type"] == "image/png" and png_size(r.content) == (size, size), name
-assert c.get("/icons/nope.png").status_code == 404 and c.get("/icons/..%2Fapi.py").status_code in (404, 422)   # path traversal չկա
-sw = c.get("/sw.js")
-assert sw.status_code == 200 and "javascript" in sw.headers["content-type"]
-assert sw.headers["cache-control"] == "no-cache" and sw.headers["service-worker-allowed"] == "/"
-assert 'addEventListener("fetch"' in sw.text and 'req.mode !== "navigate"' in sw.text                    # միայն էջերի հարցումներ
-assert "/admin" not in sw.text.replace("OFFLINE", "") and "/chat" not in sw.text and "/requests" not in sw.text   # API-ն երբեք չի քեշավորվում
-assert 'SHELL = ["/app", "/panel"]' in sw.text
-assert 'rel="manifest" href="/manifest-app.webmanifest"' in c.get("/app").text
-assert 'rel="manifest" href="/manifest-panel.webmanifest"' in c.get("/panel").text
-print("PWA-ի թեստերն անցան ✓")
-
-# =====================================================================
 # Հին բազայի migration (Փուլ 5-ի բազան չի կորչում)
 # =====================================================================
 import sqlite3, importlib

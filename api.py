@@ -15,7 +15,6 @@ from pydantic import BaseModel, Field
 
 from data import DAY_NAMES, Garage
 import admin
-import pwa
 import chat as chat_engine
 import queries
 import telegram
@@ -36,7 +35,6 @@ async def lifespan(_app):
 
 app = FastAPI(title="AI Auto Service API", version="1.1", lifespan=lifespan)
 app.include_router(admin.router)
-pwa.register(app)
 TZ = ZoneInfo("Asia/Yerevan")
 
 
