@@ -4,6 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AI Auto Service — Ադմին</title>
+<link rel="manifest" href="/manifest-panel.webmanifest">
+<meta name="theme-color" content="#1d2529">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Գարաժի պանել">
 <style>
 :root{--bg:#e9ebec;--panel:#fff;--ink:#1d2529;--mute:#5d6a71;--line:#cfd5d8;--acc:#1f5fbf;--accink:#fff;--bad:#c0392b;--ok:#1b7a4b}
 @media(prefers-color-scheme:dark){:root{--bg:#171c1f;--panel:#222a2e;--ink:#eef1f2;--mute:#9aa7ad;--line:#38434a;--acc:#5b9bff;--accink:#0b1a30;--bad:#ff7b6b;--ok:#4cc58a}}
@@ -53,7 +58,7 @@ td select{max-width:190px}
 <div id="app" class="hide">
   <header><b>AI Auto Service</b>
     <nav id="tabs"><button data-t="requests">Հայտեր</button><button data-t="garages" id="tabG">Գարաժներ</button><button data-t="report">Հաշվետվություն</button><button data-t="reviews">Կարծիքներ</button><button data-t="catalog" id="tabC">Կատալոգ</button></nav>
-    <span id="who" class="note" style="color:inherit;opacity:.7"></span><button id="out">Դուրս գալ</button></header>
+    <span id="who" class="note" style="color:inherit;opacity:.7"></span><button id="install" hidden style="border:1px solid #f2b705;opacity:1">Տեղադրել հավելվածը</button><button id="out">Դուրս գալ</button></header>
   <main id="main"></main>
 </div>
 <div id="toast" role="status"></div>
@@ -241,6 +246,13 @@ function watchLink(){ // Telegram-ի կապի կարգավիճակի թարմա�
     if(snap()!==was){clearInterval(pollT);render();toast("Telegram-ը միացավ ✓")}else if(n>=40)clearInterval(pollT)},3000);
 }
 if(token)start().catch(()=>logout());else logout();
+
+// ---- Տեղադրվող հավելված (PWA) ----
+if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));
+let deferredInstall=null;const inst=$("#install");
+addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e;inst.hidden=false});
+inst.onclick=async()=>{if(!deferredInstall)return;deferredInstall.prompt();try{await deferredInstall.userChoice}catch(e){}deferredInstall=null;inst.hidden=true};
+addEventListener("appinstalled",()=>{inst.hidden=true});
 </script>
 </body>
 </html>

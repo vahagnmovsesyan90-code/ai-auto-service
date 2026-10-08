@@ -286,6 +286,31 @@ try:
         a.click("#out")
         print("Ադմինի մոդերացիա, գարաժի տեսածը ✓")
 
+        # --- Տեղադրվող հավելված (PWA) ---
+        pw = ctx.new_page()
+        pw.on("pageerror", lambda e: errors.append("pwa pageerror: " + str(e)))
+        pw.goto(BASE + "/app")
+        pw.wait_for_function("navigator.serviceWorker.ready.then(r => !!r.active)")                       # service worker-ը գրանցվել է
+        assert pw.evaluate("document.querySelector('link[rel=manifest]').getAttribute('href')") == "/manifest-app.webmanifest"
+        assert pw.evaluate("document.querySelector('meta[name=theme-color]').content") == "#1d2529"
+        pw.reload(); pw.wait_for_function("!!navigator.serviceWorker.controller")                         # հիմա էջը վերահսկվում է SW-ով
+        pw.goto(BASE + "/panel"); pw.wait_for_function("!!navigator.serviceWorker.controller")
+        # «Տեղադրել հավելվածը» կոճակ. սկզբում թաքնված է, beforeinstallprompt-ից հետո երևում է
+        pw.goto(BASE + "/app"); expect(pw.locator("#install")).to_be_hidden()
+        pw.evaluate("""() => { const e = new Event('beforeinstallprompt'); e.prompt = () => { window.__prompted = true; };
+                           e.userChoice = Promise.resolve({outcome: 'accepted'}); window.dispatchEvent(e); }""")
+        expect(pw.locator("#install")).to_be_visible(); pw.click("#install")
+        assert pw.evaluate("window.__prompted") is True; expect(pw.locator("#install")).to_be_hidden()
+        # քեշում միայն էջերի «կեղևը» է, երբեք՝ API/անձնական տվյալները
+        pw.goto(BASE + "/review/probe-token"); pw.wait_for_timeout(300)                                   # գաղտնի հղումով էջը չպետք է քեշավորվի
+        pw.goto(BASE + "/panel"); pw.wait_for_timeout(300)
+        pw.evaluate("fetch('/garages').then(r => r.json())")
+        pw.evaluate("fetch('/admin/data', {headers: {Authorization: 'Bearer x'}})")
+        cached = pw.evaluate("""async () => { const out = []; for (const k of await caches.keys()) { const c = await caches.open(k);
+                              for (const r of await c.keys()) out.push(new URL(r.url).pathname); } return out.sort(); }""")
+        assert cached == ["/app", "/panel"], cached
+        print("PWA (service worker, տեղադրման կոճակ, քեշում միայն կեղևը) ✓")
+
         # Մոբայլ
         m = b.new_context(viewport={"width": 375, "height": 720}).new_page()
         m.goto(BASE + "/app"); m.fill("#in", "արգելակ ճռռոց"); m.press("#in", "Enter")
@@ -296,6 +321,16 @@ try:
         m.goto(BASE + "/panel"); m.fill("#pw", "pw"); m.click("#go"); expect(m.locator("#app")).to_be_visible()
         m.click("[data-t=garages]"); m.screenshot(path="shots/admin_mobile.png")
         print("Մոբայլ տեսք ✓ (admin scrollWidth=%s)" % m.evaluate("document.documentElement.scrollWidth"))
+
+        # --- Offline. իրոք անջատում ենք սերվերը (Playwright-ի set_offline-ը service worker-ի հարցումների վրա չի ազդում) ---
+        server.terminate(); server.wait(timeout=15)
+        pw.goto(BASE + "/app"); expect(pw.locator(".m.bot").first).to_contain_text("Բարև")                # քեշից
+        pw.fill("#in", "արգելակ"); pw.press("#in", "Enter")
+        expect(pw.locator(".m.bot").last).to_contain_text("սերվերը չպատասխանեց")                        # API-ն ազնվորեն ձախողվում է
+        pw.goto(BASE + "/panel"); expect(pw.locator("#login")).to_be_visible()                           # գարաժի պանելի կեղևը քեշից
+        pw.goto(BASE + "/review/some-token"); expect(pw.locator("body")).to_contain_text("Ինտերնետ կապ չկա")   # չայցելած էջ՝ «Կապ չկա»
+        pw.screenshot(path="shots/offline.png")
+        print("Offline (քեշավորված էջերը բացվում են, մնացածը՝ «Կապ չկա») ✓")
         b.close()
 
     print("JS/console սխալներ:", errors or "չկան")
