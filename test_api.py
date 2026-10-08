@@ -521,6 +521,16 @@ assert 'rel="manifest" href="/manifest-panel.webmanifest"' in c.get("/panel").te
 print("PWA-ի թեստերն անցան ✓")
 
 # =====================================================================
+# Էջերը. no-cache և տարբերակի նշում (թարմացումից հետո հին էջը չպետք է մնա քեշում)
+# =====================================================================
+for page_path in ("/app", "/panel", "/review/any-token"):
+    r = c.get(page_path)
+    assert r.status_code == 200 and r.headers["cache-control"] == "no-cache", page_path
+    assert "__APP_VERSION__" not in r.text and f"v{apimod.APP_VERSION}" in r.text, page_path
+assert c.get("/").json()["version"] == apimod.APP_VERSION
+print("Էջերի no-cache և տարբերակի թեստերն անցան ✓")
+
+# =====================================================================
 # Հին բազայի migration (Փուլ 5-ի բազան չի կորչում)
 # =====================================================================
 import sqlite3, importlib

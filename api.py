@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Header, HTTPException, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel, Field
 
 from data import DAY_NAMES, Garage
@@ -25,6 +25,16 @@ from auth import RateLimiter, chat_limiter, rate_limit, request_limiter
 from queries import (all_garages, all_services, find_services, garages_for_service, get_garage,
                      get_service, is_open, open_garages)
 
+APP_VERSION = "2.3"
+
+
+def html_page(name: str) -> HTMLResponse:
+    """HTML էջը՝ տարբերակի համարով և Cache-Control: no-cache-ով. բրաուզերը ամեն անգամ ստուգում է նոր տարբերակը,
+    որպեսզի թարմացումից հետո հին էջը չմնա քեշում։"""
+    text = (Path(__file__).parent / name).read_text(encoding="utf-8").replace("__APP_VERSION__", APP_VERSION)
+    return HTMLResponse(text, headers={"Cache-Control": "no-cache"})
+
+
 @asynccontextmanager
 async def lifespan(_app):
     """Գործարկման ժամանակ՝ Telegram բոտի webhook-ի գրանցում (եթե TELEGRAM_BOT_TOKEN-ը նշված է)։"""
@@ -34,7 +44,7 @@ async def lifespan(_app):
     yield
 
 
-app = FastAPI(title="AI Auto Service API", version="1.1", lifespan=lifespan)
+app = FastAPI(title="AI Auto Service API", version=APP_VERSION, lifespan=lifespan)
 app.include_router(admin.router)
 pwa.register(app)
 TZ = ZoneInfo("Asia/Yerevan")
@@ -87,7 +97,7 @@ def garage_out(g: Garage, ratings: dict | None = None) -> GarageOut:
 # ---- Endpoint-ներ ----------------------------------------------------------
 @app.get("/")
 def root():
-    return {"name": "AI Auto Service API", "docs": "/docs", "chat": "/app", "panel": "/panel"}
+    return {"name": "AI Auto Service API", "docs": "/docs", "chat": "/app", "panel": "/panel", "version": APP_VERSION}
 
 
 @app.get("/services", response_model=list[ServiceOut])
@@ -182,7 +192,7 @@ def chat(req: ChatRequest, request: Request):
 
 @app.get("/app", include_in_schema=False)
 def chat_page():
-    return FileResponse(Path(__file__).parent / "chat.html")
+    return html_page("chat.html")
 
 
 # ---- Վարորդի հայտ (Փուլ 7) ---------------------------------------------------
@@ -210,7 +220,7 @@ def create_request(body: RequestIn, request: Request):
 
 @app.get("/panel", include_in_schema=False)
 def admin_page():
-    return FileResponse(Path(__file__).parent / "admin.html")
+    return html_page("admin.html")
 
 
 @app.post("/telegram/webhook", include_in_schema=False)
@@ -284,4 +294,4 @@ def post_review(token: str, body: ReviewIn, request: Request):
 
 @app.get("/review/{token}", include_in_schema=False)
 def review_page(token: str):
-    return FileResponse(Path(__file__).parent / "review.html")
+    return html_page("review.html")

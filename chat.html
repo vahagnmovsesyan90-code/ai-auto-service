@@ -15,7 +15,10 @@
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Noto Sans Armenian","Segoe UI",system-ui,sans-serif;display:flex;flex-direction:column;height:100vh}
 header{padding:14px 18px;border-bottom:1px solid var(--line);background:var(--panel);display:flex;justify-content:space-between;align-items:center}
-header b{border-left:6px solid #f2b705;padding-left:10px}#mode{font-size:12px;color:var(--mute)}
+header b{border-left:6px solid #f2b705;padding-left:10px}header{flex-wrap:wrap;gap:6px}.hr{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.hr .inst{margin-left:0}
+#mode{font-size:12px;color:var(--mute)}
+.mrow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.mrow a{background:var(--acc);color:var(--accink);text-decoration:none;border-radius:14px;padding:4px 14px;font-size:14px}.mrow .done{color:var(--mute);font-size:14px}
 .inst{font:inherit;font-size:13px;cursor:pointer;border:1px solid var(--acc);background:transparent;color:var(--acc);border-radius:14px;padding:3px 12px;margin-left:8px}
 #banner{max-width:760px;width:100%;margin:0 auto;padding:10px 18px 0}
 .rb{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-left:5px solid #f2b705;border-radius:8px;padding:10px 12px;margin-bottom:8px}
@@ -44,6 +47,7 @@ header b{border-left:6px solid #f2b705;padding-left:10px}#mode{font-size:12px;co
 .gc .revs div.one{padding:4px 0}.gc .revs .who{color:var(--mute)}
 .hint{display:flex;gap:8px;flex-wrap:wrap;padding:0 18px 8px;max-width:760px;width:100%;margin:0 auto}
 .hint button{font:inherit;font-size:13px;cursor:pointer;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:16px;padding:4px 12px}
+.ver{text-align:center;font-size:11px;color:var(--mute);padding:2px 0 0;background:var(--panel)}
 .bar{display:flex;gap:8px;padding:12px 18px;border-top:1px solid var(--line);background:var(--panel)}
 .bar div{display:flex;gap:8px;max-width:724px;width:100%;margin:0 auto}
 input,textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
@@ -62,11 +66,19 @@ dialog input,dialog textarea{width:100%}
 </style>
 </head>
 <body>
-<header><b>AI Auto Service</b><span><span id="mode"></span> <button id="install" class="inst" hidden>Տեղադրել հավելվածը</button></span></header>
+<header><b>AI Auto Service</b><span class="hr"><span id="mode"></span><button id="mineBtn" class="inst" hidden>Իմ հայտերը</button><button id="newChat" class="inst">Նոր խոսակցություն</button><button id="install" class="inst" hidden>Տեղադրել հավելվածը</button></span></header>
 <div id="banner"></div>
 <div id="log"></div>
 <div class="hint" id="hint"></div>
+<div class="ver">v__APP_VERSION__</div>
 <div class="bar"><div><input id="in" placeholder="Նկարագրեք մեքենայի խնդիրը…" autocomplete="off"><button id="send">Ուղարկել</button></div></div>
+
+<dialog id="mine">
+  <h3>Իմ հայտերը</h3>
+  <div class="for">Այցից հետո այստեղից կարող եք գնահատել գարաժը։</div>
+  <div id="mineList"></div>
+  <div class="dlgbtn"><button id="mineClose">Փակել</button></div>
+</dialog>
 
 <dialog id="dlg">
   <h3>Թողնել հայտ</h3>
@@ -82,9 +94,17 @@ dialog input,dialog textarea{width:100%}
 <script>
 const log=document.getElementById("log"),inp=document.getElementById("in"),btn=document.getElementById("send"),modeEl=document.getElementById("mode");
 const dlg=document.getElementById("dlg"),$$=id=>document.getElementById(id);
-const history=[];let target=null;
+const convo=[];let target=null;
+const LOG_KEY="chat_state_v1",TTL=7*24*3600*1000;
+let items=[];   // խոսակցության տեսանելի հաղորդագրությունները (պահվում են սարքում, որպեսզի հավելվածը փակելիս չջնջվեն)
 const money=n=>Number(n).toLocaleString("en-US")+" ֏";
-const store={get(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+let storageOk=true;const mem={};
+const store={
+  get(k,d){try{const v=localStorage.getItem(k);return v==null?(k in mem?mem[k]:d):JSON.parse(v)}catch(e){storageOk=false;return k in mem?mem[k]:d}},
+  set(k,v){mem[k]=v;try{localStorage.setItem(k,JSON.stringify(v))}catch(e){storageOk=false}},
+  del(k){delete mem[k];try{localStorage.removeItem(k)}catch(e){}}
+};
+function persist(){store.set(LOG_KEY,{ts:Date.now(),items:items.slice(-60),history:convo.slice(-20)})}
 
 function ratingLine(r){
   if(!r||!r.count)return "Դեռ գնահատականներ չկան";
@@ -129,24 +149,31 @@ function renderCards(box,cards,mode){
   const list=[...cards].sort(mode==="rating"?(a,b)=>((b.rating.score??0)-(a.rating.score??0))||(a.price_amd-b.price_amd):(a,b)=>a.price_amd-b.price_amd);
   const wrap=document.createElement("div");wrap.className="cards";list.forEach(c=>wrap.append(card(c)));box.append(wrap);
 }
-function add(text,cls,cards){
+function add(text,cls,cards,link,save=true){
   const d=document.createElement("div");d.className="m "+cls;
   const t=document.createElement("div");t.textContent=text;d.append(t);
+  if(link){
+    const p=document.createElement("div");p.style.marginTop="8px";p.append("Այցից հետո գնահատեք գարաժը այս հղումով՝ ");
+    const a=document.createElement("a");a.className="lnk";a.href=link.url;a.textContent=location.origin+link.url;a.target="_blank";a.rel="noopener";p.append(a);
+    const n=document.createElement("div");n.className="fine";n.textContent="Հղումը միշտ կգտնեք վերևի «Իմ հայտերը» բաժնում։";d.append(p,n);
+  }
   if(cards&&cards.length){d.classList.add("has-cards");const box=document.createElement("div");d.append(box);renderCards(box,cards,"price")}
-  log.appendChild(d);log.scrollTop=log.scrollHeight;return d;
+  log.appendChild(d);log.scrollTop=log.scrollHeight;
+  if(save){items.push({cls,text,cards:cards&&cards.length?cards:undefined,link:link||undefined});persist()}
+  return d;
 }
 async function send(text){
   text=(text||inp.value).trim();if(!text||btn.disabled)return;
   inp.value="";$$("hint").style.display="none";
-  add(text,"me");history.push({role:"user",content:text});
-  btn.disabled=true;const wait=add("…","bot");
+  add(text,"me");convo.push({role:"user",content:text});persist();
+  btn.disabled=true;const wait=add("…","bot",null,null,false);
   try{
-    const r=await fetch("/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:history})});
+    const r=await fetch("/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:convo})});
     if(r.status===429)throw new Error("429");
     if(!r.ok)throw new Error("HTTP "+r.status);
-    const d=await r.json();wait.remove();add(d.reply,"bot",d.cards);history.push({role:"assistant",content:d.reply});
+    const d=await r.json();wait.remove();add(d.reply,"bot",d.cards);convo.push({role:"assistant",content:d.reply});persist();
     modeEl.textContent=d.mode==="ai"?"AI ռեժիմ":"Պարզ ռեժիմ (առանց AI)";
-  }catch(e){wait.textContent=String(e.message)==="429"?"Չափազանց շատ հարցումներ, փորձեք մի փոքր հետո։":"Սխալ՝ սերվերը չպատասխանեց։ Փորձեք նորից։";history.pop()}
+  }catch(e){wait.textContent=String(e.message)==="429"?"Չափազանց շատ հարցումներ, փորձեք մի փոքր հետո։":"Սխալ՝ սերվերը չպատասխանեց։ Փորձեք նորից։";convo.pop();items.pop();persist()}
   btn.disabled=false;inp.focus();log.scrollTop=log.scrollHeight;
 }
 
@@ -164,14 +191,11 @@ $$("rsend").onclick=async()=>{
     if(r.status===429){$$("rerr").textContent="Չափազանց շատ հայտեր, փորձեք ավելի ուշ։";return}
     if(!r.ok){$$("rerr").textContent="Ստուգեք հեռախոսի համարը (թվեր, +, -, փակագծեր)։";return}
     const d=await r.json();dlg.close();["rn","rp","rm"].forEach(i=>$$(i).value="");
-    const m=add(`Հայտը ուղարկված է «${d.garage||target.name}»-ին։ Նրանք կզանգահարեն ձեզ։`,"bot");
+    add(`Հայտը ուղարկված է «${d.garage||target.name}»-ին։ Նրանք կզանգահարեն ձեզ։`,"bot",null,d.review_url?{url:d.review_url}:null);
     if(d.review_url){
-      const full=location.origin+d.review_url;
-      const p=document.createElement("div");p.style.marginTop="8px";
-      p.append("Այցից հետո գնահատեք գարաժը այս հղումով (պահեք այն)՝ ");
-      const a=document.createElement("a");a.className="lnk";a.href=d.review_url;a.textContent=full;a.target="_blank";a.rel="noopener";p.append(a);
-      m.append(p);
-      const l=store.get("pending_reviews",[]);l.push({url:d.review_url,garage:d.garage||target.name,ts:Date.now()});store.set("pending_reviews",l.slice(-10));
+      const l=store.get("pending_reviews",[]);l.push({url:d.review_url,garage:d.garage||target.name,ts:Date.now(),done:false});
+      store.set("pending_reviews",l.slice(-20));refreshMine();writeHash();
+      if(!storageOk)warnStorage();
     }
     log.scrollTop=log.scrollHeight;
   }catch(e){$$("rerr").textContent="Սերվերը չպատասխանեց։"}
@@ -179,21 +203,73 @@ $$("rsend").onclick=async()=>{
 };
 
 // ---- Հիշեցում. «Գնացի՞ք» (նույն դիտարկչում, առանց արտաքին ծանուցման) ----
+function warnStorage(){
+  if($$("banner").querySelector(".stwarn"))return;
+  const d=document.createElement("div");d.className="rb stwarn";
+  const s=document.createElement("span");s.textContent="Դիտարկիչը չի թույլատրում պահել տվյալներ (հնարավոր է՝ private ռեժիմ). խոսակցությունը կկորչի թարմացնելիս։ Գնահատման հղումը կպահվի հասցեագոտում, բայց լավագույնն է պատճենել այն։";
+  d.append(s);$$("banner").prepend(d);
+}
 function banner(){
-  const after=store.get("remind_after_ms",4*3600*1000),box=$$("banner");box.textContent="";
-  store.get("pending_reviews",[]).filter(x=>Date.now()-x.ts>=after).slice(0,2).forEach(x=>{
+  const after=store.get("remind_after_ms",4*3600*1000),box=$$("banner");box.querySelectorAll(".rb:not(.stwarn)").forEach(e=>e.remove());
+  store.get("pending_reviews",[]).filter(x=>!x.done&&!x.dismissed&&Date.now()-x.ts>=after).slice(0,2).forEach(x=>{
     const d=document.createElement("div");d.className="rb";
     const s=document.createElement("span");s.textContent=`Դուք հայտ թողեցիք «${x.garage}»-ին։ Գնացի՞ք։ Կիսվեք փորձով։`;
     const a=document.createElement("a");a.href=x.url;a.textContent="Գնահատել";
-    const c=document.createElement("button");c.textContent="Փակել";c.onclick=()=>{store.set("pending_reviews",store.get("pending_reviews",[]).filter(y=>y.url!==x.url));banner()};
+    const c=document.createElement("button");c.textContent="Փակել";c.onclick=()=>{store.set("pending_reviews",store.get("pending_reviews",[]).map(y=>y.url===x.url?{...y,dismissed:true}:y));banner()};
     d.append(s,a,c);box.append(d);
   });
 }
 
-add("Բարև։ Նկարագրեք մեքենայի խնդիրը, և ես կգտնեմ համապատասխան ծառայությունը ու գարաժը։","bot");
+// ---- Իմ հայտերը ----
+const mineBtn=$$("mineBtn");
+function myReqs(){const cut=Date.now()-90*86400000;return store.get("pending_reviews",[]).filter(x=>x.ts>cut)}
+const tokOf=u=>String(u).split("/").filter(Boolean).pop();
+function hashTokens(){const m=location.hash.match(/[#&]h=([A-Za-z0-9_,-]*)/);return m?m[1].split(",").filter(Boolean):[]}
+function writeHash(){ // հղումների պահուստը հասցեագոտում. refresh-ից հետո մնում է, նույնիսկ եթե դիտարկիչը արգելում է պահոցը
+  const t=myReqs().filter(x=>!x.done).map(x=>tokOf(x.url)).slice(-5);
+  try{window.history.replaceState(null,"",location.pathname+location.search+(t.length?"#h="+t.join(","):""))}catch(e){}
+}
+async function recoverFromHash(){ // եթե պահոցը դատարկ է, բայց հասցեում կան հղումներ՝ վերականգնում ենք «Իմ հայտերը»
+  const known=new Set(myReqs().map(x=>tokOf(x.url)));let changed=false;const l=store.get("pending_reviews",[]);
+  for(const t of hashTokens()){
+    if(known.has(t))continue;
+    try{const r=await fetch("/review-info/"+encodeURIComponent(t));if(!r.ok)continue;const d=await r.json();
+      l.push({url:"/review/"+t,garage:d.garage||"Գարաժ",ts:Date.now(),done:!!d.already_reviewed});changed=true}catch(e){}
+  }
+  if(changed){store.set("pending_reviews",l.slice(-20));refreshMine()}
+}
+function refreshMine(){const l=myReqs();mineBtn.hidden=!l.length;const n=l.filter(x=>!x.done).length;mineBtn.textContent="Իմ հայտերը"+(n?` (${n})`:"")}
+mineBtn.onclick=()=>{
+  const box=$$("mineList");box.textContent="";
+  [...myReqs()].reverse().forEach(x=>{
+    const r=document.createElement("div");r.className="mrow";
+    const s=document.createElement("span");s.textContent=`${x.garage} · ${new Date(x.ts).toLocaleDateString("en-GB")}`;r.append(s);
+    if(x.done){const k=document.createElement("span");k.className="done";k.textContent="✓ Գնահատված";r.append(k)}
+    else{const a=document.createElement("a");a.href=x.url;a.textContent="Գնահատել";r.append(a)}
+    box.append(r);
+  });
+  $$("mine").showModal();
+};
+$$("mineClose").onclick=()=>$$("mine").close();
+let armedNew=false;
+$$("newChat").onclick=e=>{   // «Իմ հայտերը»-ը չի ջնջվում, միայն խոսակցությունը
+  if(items.length&&!armedNew){armedNew=true;e.target.textContent="Հաստատե՞լ";setTimeout(()=>{armedNew=false;e.target.textContent="Նոր խոսակցություն"},3500);return}
+  store.del(LOG_KEY);location.reload();
+};
+function restore(){   // վերականգնում ենք վերջին խոսակցությունը (մինչև 7 օր)
+  const st=store.get(LOG_KEY,null);
+  if(!st||!st.items||!st.items.length||Date.now()-st.ts>TTL)return false;
+  convo.push(...(st.history||[]));items=st.items;
+  let orphan=null;   // էջը թարմացվել է պատասխանի սպասման ժամանակ. վերջին հարցը պատասխան չունի
+  if(items.length&&items[items.length-1].cls==="me"){orphan=items.pop().text;if(convo.length&&convo[convo.length-1].role==="user")convo.pop();persist()}
+  st.items.forEach(i=>add(i.text,i.cls,i.cards,i.link,false));$$("hint").style.display="none";
+  if(orphan){inp.value=orphan;add("Նախորդ հարցի պատասխանը չստացվեց (էջը թարմացվել է)։ Հարցը վերադարձվել է մուտքի դաշտ՝ ուղարկեք նորից։","bot",null,null,false)}
+  return true;
+}
+if(!restore())add("Բարև։ Նկարագրեք մեքենայի խնդիրը, և ես կգտնեմ համապատասխան ծառայությունը ու գարաժը։","bot",null,null,false);
 ["Արգելակելիս ճռռոց է լսվում","Օդորակիչը չի սառեցնում","Ո՞ր գարաժն է հիմա բաց"].forEach(t=>{const b=document.createElement("button");b.textContent=t;b.onclick=()=>send(t);$$("hint").appendChild(b)});
 btn.onclick=()=>send();inp.addEventListener("keydown",e=>{if(e.key==="Enter")send()});
-banner();
+banner();refreshMine();recoverFromHash().then(writeHash);if(!storageOk)warnStorage();
 
 // ---- Տեղադրվող հավելված (PWA) ----
 if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));

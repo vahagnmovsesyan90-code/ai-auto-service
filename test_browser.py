@@ -76,6 +76,28 @@ try:
         page.screenshot(path="shots/chat_after_request.png")
         print("«Թողնել հայտ» քարտից (լրացված գարաժ/ծառայություն, վալիդացիա, գնահատման հղում) ✓")
 
+        # --- Հավելվածը փակում և նորից բացում ենք. խոսակցությունը և գնահատման հղումը չեն ջնջվում ---
+        page.reload()
+        expect(page.locator(".m.bot").last).to_contain_text("Հայտը ուղարկված է «Garage Kentron»-ին")
+        expect(page.locator(".m.bot").last.locator("a.lnk")).to_have_attribute("href", review_url)   # նույն հղումը
+        expect(page.locator(".m.me")).to_have_count(4)                                       # նախորդ հաղորդագրությունները
+        expect(page.locator(".gc").first).to_be_visible()                                    # քարտերը նույնպես
+        assert page.locator("#hint").is_hidden()
+        expect(page.locator("#mineBtn")).to_have_text("Իմ հայտերը (1)")                      # մշտական ցուցակ՝ նույնիսկ առանց չատի
+        page.click("#mineBtn")
+        expect(page.locator("#mineList")).to_contain_text("Garage Kentron")
+        expect(page.locator("#mineList a")).to_have_attribute("href", review_url)
+        page.screenshot(path="shots/my_requests.png"); page.click("#mineClose")
+        page.fill("#in", "օդորակիչ"); page.press("#in", "Enter")                             # խոսակցությունը շարունակվում է
+        expect(page.locator(".m.me")).to_have_count(5)
+        expect(page.locator(".m.bot").last).to_contain_text("Օդորակիչի լիցքավորում")
+        # «Նոր խոսակցություն». մաքրում է չատը, բայց ոչ «Իմ հայտերը»
+        page.click("#newChat"); expect(page.locator("#newChat")).to_have_text("Հաստատե՞լ")
+        page.click("#newChat")
+        expect(page.locator(".m.bot").first).to_contain_text("Բարև"); expect(page.locator(".m.me")).to_have_count(0)
+        expect(page.locator("#mineBtn")).to_have_text("Իմ հայտերը (1)")
+        print("Փակել/նորից բացել. խոսակցությունը, քարտերը և «Իմ հայտերը» մնում են ✓")
+
         # ================= ԱԴՄԻՆ =================
         a = ctx.new_page()
         a.on("pageerror", lambda e: errors.append("admin pageerror: " + str(e)))
@@ -238,7 +260,7 @@ try:
         v.click("#send"); expect(v.locator("#box")).to_contain_text("Շնորհակալություն")
         v.reload(); expect(v.locator("#box")).to_contain_text("արդեն թողնված")                # մեկ հայտ = մեկ կարծիք
         v.goto(BASE + "/review/not-a-real-token"); expect(v.locator("#box")).to_contain_text("անվավեր")
-        assert page.evaluate("JSON.parse(localStorage.getItem('pending_reviews')||'[]')") == []   # հիշեցումը հանվել է
+        assert [x["done"] for x in page.evaluate("JSON.parse(localStorage.getItem('pending_reviews')||'[]')")] == [True]   # նշվել է որպես գնահատված
 
         # chat-ում քարտը ցույց է տալիս գնահատականը և կարծիքը (HTML-ը էկրանավորված է)
         page.reload(); page.fill("#in", "կախոցի թակոց"); page.press("#in", "Enter")
@@ -264,6 +286,9 @@ try:
         v.goto(BASE + url2); v.get_by_role("button", name="Ոչ, չգնացի").click()
         v.click("#send"); expect(v.locator("#err")).to_contain_text("պատճառը")
         v.select_option("#reason", "price"); v.click("#send"); expect(v.locator("#box")).to_contain_text("Շնորհակալություն")
+        page.reload(); expect(page.locator("#mineBtn")).to_have_text("Իմ հայտերը")                 # այլևս չգնահատված չկա
+        page.click("#mineBtn"); expect(page.locator("#mineList .done")).to_have_count(2); expect(page.locator("#mineList a")).to_have_count(0)
+        page.click("#mineClose")
         print("Վարորդի գնահատում (այո/ոչ, մեկանգամյա, հիշեցում, քարտերում վարկանիշ) ✓")
 
         # --- Ադմինը տեսնում է կարծիքները և թաքցնում է մեկը ---
@@ -286,9 +311,40 @@ try:
         a.click("#out")
         print("Ադմինի մոդերացիա, գարաժի տեսածը ✓")
 
+        # --- Եթե դիտարկիչը արգելում է localStorage-ը (private ռեժիմ և այլն) ---
+        blocked = b.new_context(viewport={"width": 1000, "height": 800})
+        blocked.add_init_script("Object.defineProperty(window, 'localStorage', {get() { throw new DOMException('denied', 'SecurityError'); }})")
+        bp = blocked.new_page()
+        bp.on("pageerror", lambda e: errors.append("blocked pageerror: " + str(e)))
+        bp.goto(BASE + "/app"); bp.fill("#in", "արգելակ ճռռոց"); bp.press("#in", "Enter")
+        expect(bp.locator(".gc").first).to_be_visible()
+        bp.locator(".gc").first.get_by_role("button", name="Թողնել հայտ").click()
+        bp.fill("#rn", "Կարեն"); bp.fill("#rp", "+374 91 987654"); bp.click("#rsend")
+        expect(bp.locator("#dlg")).not_to_be_visible()
+        expect(bp.locator(".stwarn")).to_contain_text("չի թույլատրում պահել տվյալներ")           # վարորդին ազնվորեն ասում ենք
+        link_blocked = bp.locator(".m.bot").last.locator("a.lnk").get_attribute("href")
+        assert "#h=" in bp.url and link_blocked.split("/")[-1] in bp.url, bp.url                     # հղումը պահվել է հասցեագոտում
+        bp.reload()                                                                                   # refresh առանց localStorage-ի
+        expect(bp.locator("#mineBtn")).to_have_text("Իմ հայտերը (1)")                                # հղումը չկորավ
+        bp.click("#mineBtn"); expect(bp.locator("#mineList a")).to_have_attribute("href", link_blocked)
+        bp.screenshot(path="shots/storage_blocked.png")
+        bp.click("#mineClose"); blocked.close()
+        print("localStorage-ը արգելված է. նախազգուշացում + հղումը չի կորչում refresh-ից հետո ✓")
+
+        # --- Refresh պատասխանի սպասման ժամանակ. անպատասխան հարցը վերադառնում է մուտքի դաշտ ---
+        page.evaluate("""localStorage.setItem('chat_state_v1', JSON.stringify({ts: Date.now(),
+            items: [{cls: 'me', text: 'թակոց կախոցից'}], history: [{role: 'user', content: 'թակոց կախոցից'}]}))""")
+        page.reload()
+        expect(page.locator("#in")).to_have_value("թակոց կախոցից")
+        expect(page.locator(".m.bot").last).to_contain_text("պատասխանը չստացվեց")
+        assert page.locator(".m.me").count() == 0
+        page.evaluate("localStorage.removeItem('chat_state_v1')")
+        print("Անպատասխան հարցի վերականգնում ✓")
+
         # --- Տեղադրվող հավելված (PWA) ---
         pw = ctx.new_page()
         pw.on("pageerror", lambda e: errors.append("pwa pageerror: " + str(e)))
+        pw.goto(BASE + "/app"); pw.evaluate("localStorage.removeItem('chat_state_v1')")                    # մաքուր չատ՝ ողջույնով
         pw.goto(BASE + "/app")
         pw.wait_for_function("navigator.serviceWorker.ready.then(r => !!r.active)")                       # service worker-ը գրանցվել է
         assert pw.evaluate("document.querySelector('link[rel=manifest]').getAttribute('href')") == "/manifest-app.webmanifest"

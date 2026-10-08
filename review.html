@@ -30,14 +30,15 @@ textarea,input,select{width:100%;font:inherit;color:var(--ink);background:var(--
 <main>
   <div class="brand">AI Auto Service</div>
   <div class="box" id="box"><p class="sub">Բեռնվում է…</p></div>
+  <div style="text-align:center;font-size:11px;color:var(--mute);padding:14px 0">v__APP_VERSION__</div>
 </main>
 <script>
 const token=location.pathname.split("/").filter(Boolean).pop();
 const box=document.getElementById("box");
 let went=null,rating=0;
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-function forget(){ // հեռացնել chat-ի հիշեցումը այս հղումի համար
-  try{const k="pending_reviews",l=JSON.parse(localStorage.getItem(k)||"[]").filter(x=>x.url!==location.pathname);localStorage.setItem(k,JSON.stringify(l))}catch(e){}
+function forget(){ // chat-ի «Իմ հայտերը» ցուցակում այս հայտը նշել որպես գնահատված
+  try{const k="pending_reviews",l=JSON.parse(localStorage.getItem(k)||"[]").map(x=>x.url===location.pathname?{...x,done:true}:x);localStorage.setItem(k,JSON.stringify(l))}catch(e){}
 }
 function msg(title,text){box.innerHTML=`<h1>${esc(title)}</h1><p class="sub">${esc(text)}</p>`}
 const REASONS={price:"Թանկ էր",far:"Հեռու էր",other_garage:"Գնացի այլ գարաժ",no_time:"Ժամը չհամապատասխանեց",changed_mind:"Այլևս պետք չեղավ",other:"Այլ պատճառ"};
