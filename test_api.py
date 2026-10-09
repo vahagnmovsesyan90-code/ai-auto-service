@@ -531,6 +531,45 @@ assert c.get("/").json()["version"] == apimod.APP_VERSION
 print("Էջերի no-cache և տարբերակի թեստերն անցան ✓")
 
 # =====================================================================
+# «Իմ հայտերը». սերվերի ստուգում (անվավեր հղումները չեն երևա) և հայերեն տառերի ուղղորդում
+# =====================================================================
+apimod.review_limiter.limit = 1000; apimod.review_limiter.hits.clear()
+_, good_tok = mk(R1, "+374 91 600001")
+_, rev_tok = mk(R2, "+374 91 600002"); review(rev_tok, went=True, rating=5)
+_, nog_tok2 = mk(None, "+374 91 600003")
+res = c.post("/my-requests/check", json={"tokens": [good_tok, "fake-token-123", rev_tok, nog_tok2, good_tok]}).json()["requests"]
+by = {x["token"]: x for x in res}
+assert set(by) == {good_tok, rev_tok}, by                                    # կեղծը և առանց գարաժի հայտը չեն վերադառնում
+assert by[good_tok]["garage"] == "Rate One" and by[good_tok]["already_reviewed"] is False
+assert by[rev_tok]["already_reviewed"] is True and by[rev_tok]["garage"] == "Rate Two"
+assert c.post("/my-requests/check", json={"tokens": []}).json() == {"requests": []}
+assert c.post("/my-requests/check", json={"tokens": ["x"] * 21}).status_code == 422   # առավելագույնը 20
+assert c.post("/my-requests/check", json={"tokens": ["a" * 65]}).json() == {"requests": []}
+assert "phone" not in str(res) and "name" not in {k for x in res for k in x}           # անձնական տվյալ չի հայտնվում
+apimod.check_limiter.limit = 2; apimod.check_limiter.hits.clear()
+assert [c.post("/my-requests/check", json={"tokens": [good_tok]}).status_code for _ in range(3)] == [200, 200, 429]
+apimod.check_limiter.limit = 1000
+# ստուգումը չի ծախսում գնահատման սահմանաչափը. 30 ստուգումից հետո գնահատումը դեռ աշխատում է
+apimod.review_limiter.limit = 3; apimod.review_limiter.hits.clear(); apimod.check_limiter.hits.clear(); apimod.check_limiter.limit = 100
+for _ in range(30): assert c.post("/my-requests/check", json={"tokens": [good_tok]}).status_code == 200
+assert review(good_tok, went=True, rating=4).status_code == 201
+apimod.review_limiter.limit = 1000
+
+# հայերեն տառեր. լատինատառ/ռուսերեն ձեռնարկ՝ առանց խանգարելու մակնիշներին ու համընկնումներին
+def simple(text): return c.post("/chat", json={"messages": [{"role": "user", "content": text}]}).json()
+for txt in ("arrgelak chrrroc", "tormoza skripyat", "тормоза скрипят", "problem with my car"):
+    r = simple(txt)
+    assert "հայերեն տառերով" in r["reply"] and r["cards"] == [], txt
+assert simple("check engine լամպը վառվում է")["cards"]                         # համընկնում կա -> աշխատում է
+assert simple("BMW-ի արգելակները ճռռում են")["cards"]                          # մակնիշը լատինատառ՝ խնդիր չէ
+assert "հայերեն տառերով" not in simple("արգելակելիս ճռռոց է լսվում")["reply"]
+assert "հայերեն տառերով" not in simple("բլա բլա")["reply"] and "Չհասկացա" in simple("բլա բլա")["reply"]   # հայերեն անհասկանալին՝ նախկինի պես
+assert "հայերեն տառերով" not in simple("12 34")["reply"]                                  # թվերը հայերեն հուշում չեն առաջացնում
+assert chat.mostly_non_armenian("hello world") and not chat.mostly_non_armenian("BMW արգելակ") and not chat.mostly_non_armenian("ok")
+assert "հայերեն տառերով" in chat.system_prompt()
+print("«Իմ հայտերը»-ի ստուգման և հայերեն տառերի թեստերն անցան ✓")
+
+# =====================================================================
 # Հին բազայի migration (Փուլ 5-ի բազան չի կորչում)
 # =====================================================================
 import sqlite3, importlib

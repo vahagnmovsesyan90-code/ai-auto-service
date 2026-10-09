@@ -40,12 +40,15 @@ const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&g
 function forget(){ // chat-ի «Իմ հայտերը» ցուցակում այս հայտը նշել որպես գնահատված
   try{const k="pending_reviews",l=JSON.parse(localStorage.getItem(k)||"[]").map(x=>x.url===location.pathname?{...x,done:true}:x);localStorage.setItem(k,JSON.stringify(l))}catch(e){}
 }
+function drop(){ // անվավեր հղումը չի մնում chat-ի «Իմ հայտերը» ցուցակում
+  try{const k="pending_reviews",l=JSON.parse(localStorage.getItem(k)||"[]").filter(x=>x.url!==location.pathname);localStorage.setItem(k,JSON.stringify(l))}catch(e){}
+}
 function msg(title,text){box.innerHTML=`<h1>${esc(title)}</h1><p class="sub">${esc(text)}</p>`}
 const REASONS={price:"Թանկ էր",far:"Հեռու էր",other_garage:"Գնացի այլ գարաժ",no_time:"Ժամը չհամապատասխանեց",changed_mind:"Այլևս պետք չեղավ",other:"Այլ պատճառ"};
 
 async function init(){
   let r;try{r=await fetch("/review-info/"+encodeURIComponent(token))}catch(e){return msg("Սերվերը չպատասխանեց","Փորձեք մի փոքր հետո։")}
-  if(r.status===404)return msg("Հղումը անվավեր է","Ստուգեք, որ հղումը ամբողջությամբ պատճենել եք։");
+  if(r.status===404){drop();return msg("Հղումը անվավեր է","Ստուգեք, որ հղումը ամբողջությամբ պատճենել եք։ Եթե հայտը թողել եք վաղուց, հնարավոր է՝ այն այլևս չկա։")}
   if(r.status===429)return msg("Շատ հարցումներ","Փորձեք մի փոքր հետո։");
   const d=await r.json();
   if(!d.has_garage)return msg("Այս հայտը գարաժի չի նշանակված","Գնահատել հնարավոր չէ։");

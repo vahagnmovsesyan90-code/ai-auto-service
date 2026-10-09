@@ -311,6 +311,55 @@ try:
         a.click("#out")
         print("Ադմինի մոդերացիա, գարաժի տեսածը ✓")
 
+        # --- Հայերեն տառերի ուղղորդում ---
+        lc = b.new_context(viewport={"width": 1000, "height": 800}); lp = lc.new_page()
+        lp.on("pageerror", lambda e: errors.append("lang pageerror: " + str(e)))
+        lp.goto(BASE + "/app")
+        assert "հայերեն տառերով" in lp.get_attribute("#in", "placeholder")                        # մշտական հուշում դաշտում
+        expect(lp.locator(".m.bot").first).to_contain_text("հայերեն տառերով")                    # և ողջույնում
+        expect(lp.locator("#lang")).to_be_hidden()
+        lp.fill("#in", "arrgelak chrrroc")                                                         # լատինատառ -> հուշում երևում է
+        lp.dispatch_event("#in", "input"); expect(lp.locator("#lang")).to_be_visible()
+        expect(lp.locator("#lang")).to_contain_text("հայերեն տառերով")
+        lp.fill("#in", "BMW արգելակ"); lp.dispatch_event("#in", "input"); expect(lp.locator("#lang")).to_be_hidden()   # մակնիշը խնդիր չէ
+        lp.fill("#in", "արգելակ"); lp.dispatch_event("#in", "input"); expect(lp.locator("#lang")).to_be_hidden()
+        lp.fill("#in", "tormoza skripyat"); lp.dispatch_event("#in", "input"); expect(lp.locator("#lang")).to_be_visible()
+        lp.screenshot(path="shots/armenian_hint.png")
+        lp.press("#in", "Enter")                                                                   # չի արգելվում, բայց բոտը ուղղորդում է
+        expect(lp.locator(".m.bot").last).to_contain_text("հայերեն տառերով"); assert lp.locator(".gc").count() == 0
+        expect(lp.locator("#lang")).to_be_hidden()
+        lc.close()
+        print("Հայերեն տառերի ուղղորդում (placeholder, ողջույն, հուշում, բոտի պատասխան, BMW-ը խնդիր չէ) ✓")
+
+        # --- «Իմ հայտերը». անվավեր հղումները չեն երևում ---
+        ic = b.new_context(viewport={"width": 1000, "height": 800}); ip = ic.new_page()
+        ip.on("pageerror", lambda e: errors.append("mine pageerror: " + str(e)))
+        valid = ic.request.post(BASE + "/requests", data={"name": "Վ", "phone": "+374 91 700001", "garage_id": 2}).json()["review_url"]
+        ip.goto(BASE + "/app")
+        def seed(entries): ip.evaluate("(e) => localStorage.setItem('pending_reviews', JSON.stringify(e))", entries)
+        now = ip.evaluate("Date.now()")
+        seed([{"url": valid, "garage": "Garage Kentron", "ts": now, "done": False}, {"url": "/review/fake-token-abc", "garage": "Ghost Garage", "ts": now, "done": False}])
+        ip.reload()
+        expect(ip.locator("#mineBtn")).to_have_text("Իմ հայտերը (1)")                              # միայն վավերը
+        ip.click("#mineBtn")
+        expect(ip.locator("#mineList")).to_contain_text("Garage Kentron"); expect(ip.locator("#mineList")).not_to_contain_text("Ghost Garage")
+        assert "fake-token-abc" not in ip.evaluate("localStorage.getItem('pending_reviews')")       # պահոցից նույնպես հանված է
+        ip.click("#mineClose")
+        seed([{"url": "/review/only-fake", "garage": "Ghost Garage", "ts": now, "done": False}])   # միայն անվավեր -> կոճակ չկա
+        ip.goto(BASE + "/app"); ip.wait_for_timeout(800); expect(ip.locator("#mineBtn")).to_be_hidden()   # մաքուր URL (առանց #h=)
+        # անվավեր հղումով գնահատման էջը նույնպես հանում է այն ցուցակից
+        seed([{"url": "/review/fake-2", "garage": "Ghost", "ts": now, "done": False}, {"url": valid, "garage": "Garage Kentron", "ts": now, "done": False}])
+        ip.goto(BASE + "/review/fake-2"); expect(ip.locator("#box")).to_contain_text("Հղումը անվավեր է")
+        stored = ip.evaluate("JSON.parse(localStorage.getItem('pending_reviews'))")
+        assert [x["url"] for x in stored] == [valid], stored
+        # ցանցի անկման դեպքում ոչինչ չի ջնջվում (չենք կարող իմանալ՝ վավեր է թե ոչ)
+        ip.goto(BASE + "/app"); expect(ip.locator("#mineBtn")).to_be_visible()
+        ip.route("**/my-requests/check", lambda route: route.abort())
+        ip.reload(); ip.wait_for_timeout(800)
+        expect(ip.locator("#mineBtn")).to_be_visible()
+        ic.close()
+        print("«Իմ հայտերը». անվավեր հղումները չեն երևում և հանվում են, ցանցի անկման դեպքում ոչինչ չի կորչում ✓")
+
         # --- Եթե դիտարկիչը արգելում է localStorage-ը (private ռեժիմ և այլն) ---
         blocked = b.new_context(viewport={"width": 1000, "height": 800})
         blocked.add_init_script("Object.defineProperty(window, 'localStorage', {get() { throw new DOMException('denied', 'SecurityError'); }})")

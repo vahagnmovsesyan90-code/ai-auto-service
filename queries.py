@@ -437,3 +437,21 @@ def set_review_hidden(review_id: int, hidden: bool, reason: str | None) -> bool:
     with connect() as c:
         return c.execute("UPDATE reviews SET hidden=?, hidden_reason=? WHERE id=?",
                          (1 if hidden else 0, reason if hidden else None, review_id)).rowcount == 1
+
+
+def existing_review_tokens(tokens: list[str]) -> list[dict]:
+    """«Իմ հայտերը» ցուցակի ստուգում. վերադարձնում է միայն այն հղումները, որոնք սերվերում դեռ կան
+    (օր.՝ անվճար հոսթինգի վերագործարկումից հետո հին հղումները դադարում են գոյություն ունենալ)։"""
+    tokens = [t for t in dict.fromkeys(tokens) if t][:20]
+    if not tokens:
+        return []
+    marks = ",".join("?" * len(tokens))
+    with connect() as c:
+        rows = c.execute(f"""SELECT r.review_token AS token, g.name AS garage, s.name AS service, r.garage_id,
+                                    rv.id AS review_id
+                             FROM requests r LEFT JOIN garages g ON g.id = r.garage_id
+                             LEFT JOIN services s ON s.id = r.service_id
+                             LEFT JOIN reviews rv ON rv.request_id = r.id
+                             WHERE r.review_token IN ({marks})""", tokens).fetchall()
+    return [{"token": r["token"], "garage": r["garage"], "service": r["service"],
+             "already_reviewed": r["review_id"] is not None, "has_garage": r["garage_id"] is not None} for r in rows]

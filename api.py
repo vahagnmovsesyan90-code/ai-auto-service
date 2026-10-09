@@ -25,7 +25,7 @@ from auth import RateLimiter, chat_limiter, rate_limit, request_limiter
 from queries import (all_garages, all_services, find_services, garages_for_service, get_garage,
                      get_service, is_open, open_garages)
 
-APP_VERSION = "2.3"
+APP_VERSION = "2.4"
 
 
 def html_page(name: str) -> HTMLResponse:
@@ -238,7 +238,8 @@ async def telegram_webhook(request: Request,
 
 
 # ---- Գնահատականներ (վարորդի կողմից) -------------------------------------------
-review_limiter = RateLimiter(10)
+review_limiter = RateLimiter(10)   # գնահատման ուղարկում/ստուգում
+check_limiter = RateLimiter(60)    # «Իմ հայտերը»-ի ստուգում. առանձին, որպեսզի էջի թարմացումները չարգելափակեն գնահատումը
 
 
 class ReviewIn(BaseModel):
@@ -263,6 +264,18 @@ def garage_reviews(garage_id: int):
     if get_garage(garage_id) is None:
         raise HTTPException(404, "Գարաժը չի գտնվել")
     return queries.public_reviews(garage_id)
+
+
+class MyRequestsIn(BaseModel):
+    tokens: list[str] = Field(max_length=20)
+
+
+@app.post("/my-requests/check")
+def check_my_requests(body: MyRequestsIn, request: Request):
+    """Վարորդի սարքում պահված գնահատման հղումների ստուգում մեկ հարցումով։ Վերադարձվում են միայն գոյություն ունեցողները։"""
+    rate_limit(check_limiter, request)
+    tokens = [t for t in body.tokens if 0 < len(t) <= 64]
+    return {"requests": [r for r in queries.existing_review_tokens(tokens) if r["has_garage"]]}
 
 
 @app.get("/review-info/{token}")

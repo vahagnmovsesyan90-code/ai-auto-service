@@ -47,6 +47,8 @@ header b{border-left:6px solid #f2b705;padding-left:10px}header{flex-wrap:wrap;g
 .gc .revs div.one{padding:4px 0}.gc .revs .who{color:var(--mute)}
 .hint{display:flex;gap:8px;flex-wrap:wrap;padding:0 18px 8px;max-width:760px;width:100%;margin:0 auto}
 .hint button{font:inherit;font-size:13px;cursor:pointer;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:16px;padding:4px 12px}
+.langhint{max-width:760px;margin:0 auto;width:100%;padding:6px 18px;font-size:13px;color:var(--ink);background:#f2b70533;border-top:1px solid var(--line)}
+.langhint[hidden]{display:none}
 .ver{text-align:center;font-size:11px;color:var(--mute);padding:2px 0 0;background:var(--panel)}
 .bar{display:flex;gap:8px;padding:12px 18px;border-top:1px solid var(--line);background:var(--panel)}
 .bar div{display:flex;gap:8px;max-width:724px;width:100%;margin:0 auto}
@@ -70,8 +72,9 @@ dialog input,dialog textarea{width:100%}
 <div id="banner"></div>
 <div id="log"></div>
 <div class="hint" id="hint"></div>
+<div id="lang" class="langhint" hidden>Խնդրում ենք գրել <b>հայերեն տառերով</b>, օրինակ՝ «արգելակելիս ճռռոց է լսվում»։ Այդպես ես ավելի լավ կհասկանամ։ Մակնիշները (BMW, Toyota) կարող եք գրել լատինատառ։</div>
 <div class="ver">v__APP_VERSION__</div>
-<div class="bar"><div><input id="in" placeholder="Նկարագրեք մեքենայի խնդիրը…" autocomplete="off"><button id="send">Ուղարկել</button></div></div>
+<div class="bar"><div><input id="in" placeholder="Գրեք հայերեն տառերով, օր.՝ արգելակելիս ճռռոց է լսվում" autocomplete="off"><button id="send">Ուղարկել</button></div></div>
 
 <dialog id="mine">
   <h3>Իմ հայտերը</h3>
@@ -164,7 +167,7 @@ function add(text,cls,cards,link,save=true){
 }
 async function send(text){
   text=(text||inp.value).trim();if(!text||btn.disabled)return;
-  inp.value="";$$("hint").style.display="none";
+  inp.value="";$$("lang").hidden=true;$$("hint").style.display="none";
   add(text,"me");convo.push({role:"user",content:text});persist();
   btn.disabled=true;const wait=add("…","bot",null,null,false);
   try{
@@ -229,17 +232,27 @@ function writeHash(){ // հղումների պահուստը հասցեագոտ�
   const t=myReqs().filter(x=>!x.done).map(x=>tokOf(x.url)).slice(-5);
   try{window.history.replaceState(null,"",location.pathname+location.search+(t.length?"#h="+t.join(","):""))}catch(e){}
 }
-async function recoverFromHash(){ // եթե պահոցը դատարկ է, բայց հասցեում կան հղումներ՝ վերականգնում ենք «Իմ հայտերը»
-  const known=new Set(myReqs().map(x=>tokOf(x.url)));let changed=false;const l=store.get("pending_reviews",[]);
-  for(const t of hashTokens()){
-    if(known.has(t))continue;
-    try{const r=await fetch("/review-info/"+encodeURIComponent(t));if(!r.ok)continue;const d=await r.json();
-      l.push({url:"/review/"+t,garage:d.garage||"Գարաժ",ts:Date.now(),done:!!d.already_reviewed});changed=true}catch(e){}
-  }
-  if(changed){store.set("pending_reviews",l.slice(-20));refreshMine()}
+async function syncMine(){ // ստուգում ենք սերվերում. անվավեր (գոյություն չունեցող) հայտերը հանվում են ցուցակից
+  const l=store.get("pending_reviews",[]),byTok=new Map(l.map(x=>[tokOf(x.url),x]));
+  const toks=[...new Set([...l.map(x=>tokOf(x.url)),...hashTokens()])].slice(0,20);
+  if(!toks.length)return;
+  try{
+    const r=await fetch("/my-requests/check",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({tokens:toks})});
+    if(!r.ok)return;                                   // սխալի կամ կապի բացակայության դեպքում ոչինչ չենք ջնջում
+    const ok=new Map((await r.json()).requests.map(x=>[x.token,x]));
+    const out=[];
+    for(const t of toks){
+      const info=ok.get(t);if(!info)continue;          // սերվերը չգիտի այս հղումը -> օգտատիրոջը ցույց չենք տալիս
+      const old=byTok.get(t)||{url:"/review/"+t,ts:Date.now()};
+      out.push({...old,garage:info.garage||old.garage||"Գարաժ",done:!!info.already_reviewed||!!old.done});
+    }
+    store.set("pending_reviews",out);refreshMine();writeHash();
+  }catch(e){}
 }
 function refreshMine(){const l=myReqs();mineBtn.hidden=!l.length;const n=l.filter(x=>!x.done).length;mineBtn.textContent="Իմ հայտերը"+(n?` (${n})`:"")}
-mineBtn.onclick=()=>{
+mineBtn.onclick=async()=>{
+  await syncMine();                                    // ամեն բացելիս թարմացնում ենք. անվավերները չեն երևա
+  if(!myReqs().length)return;
   const box=$$("mineList");box.textContent="";
   [...myReqs()].reverse().forEach(x=>{
     const r=document.createElement("div");r.className="mrow";
@@ -266,10 +279,12 @@ function restore(){   // վերականգնում ենք վերջին խոսակ
   if(orphan){inp.value=orphan;add("Նախորդ հարցի պատասխանը չստացվեց (էջը թարմացվել է)։ Հարցը վերադարձվել է մուտքի դաշտ՝ ուղարկեք նորից։","bot",null,null,false)}
   return true;
 }
-if(!restore())add("Բարև։ Նկարագրեք մեքենայի խնդիրը, և ես կգտնեմ համապատասխան ծառայությունը ու գարաժը։","bot",null,null,false);
+if(!restore())add("Բարև։ Նկարագրեք մեքենայի խնդիրը հայերեն տառերով, և ես կգտնեմ համապատասխան ծառայությունը ու գարաժը։","bot",null,null,false);
 ["Արգելակելիս ճռռոց է լսվում","Օդորակիչը չի սառեցնում","Ո՞ր գարաժն է հիմա բաց"].forEach(t=>{const b=document.createElement("button");b.textContent=t;b.onclick=()=>send(t);$$("hint").appendChild(b)});
+const nonArm=t=>{const arm=(t.match(/[\u0531-\u0556\u0561-\u0587]/g)||[]).length,oth=(t.match(/[A-Za-z\u0400-\u04FF]/g)||[]).length;return oth>=3&&oth>arm};
+inp.addEventListener("input",()=>{$$("lang").hidden=!nonArm(inp.value)});   // ազնիվ հուշում, առանց արգելելու (մակնիշները լատինատառ են)
 btn.onclick=()=>send();inp.addEventListener("keydown",e=>{if(e.key==="Enter")send()});
-banner();refreshMine();recoverFromHash().then(writeHash);if(!storageOk)warnStorage();
+banner();refreshMine();syncMine();if(!storageOk)warnStorage();
 
 // ---- Տեղադրվող հավելված (PWA) ----
 if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));
