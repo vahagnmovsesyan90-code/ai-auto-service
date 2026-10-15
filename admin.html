@@ -205,9 +205,19 @@ function setDraft(lat,lng,msg){
   MAP.setView([lat,lng],Math.max(MAP.getZoom(),17));
   $("#locSave").disabled=false;if(msg)locMsg(msg);
 }
-function initMap(){
+function loadLeafletCDN(){ // պահուստ. եթե /static/leaflet չկա սերվերում, բեռնում ենք cdnjs-ից
+  return new Promise(res=>{
+    const l=document.createElement("link");l.rel="stylesheet";l.href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css";document.head.append(l);
+    const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js";
+    s.onload=()=>res(typeof L!=="undefined");s.onerror=()=>res(false);document.head.append(s);
+  });
+}
+async function initMap(){
   if(MAP){MAP.remove();MAP=null;MARK=null}DRAFT=null;
-  const el=$("#map");if(!el||typeof L==="undefined"){if(el)el.textContent="Քարտեզը չբեռնվեց։";return}
+  let el=$("#map");if(!el)return;
+  if(typeof L==="undefined"){el.textContent="Քարտեզը բեռնվում է…";await loadLeafletCDN();el=$("#map");if(!el)return}
+  if(typeof L==="undefined"){el.textContent="Քարտեզը չբեռնվեց։";return}
+  el.textContent="";
   const g=curG();
   MAP=L.map(el).setView(g&&g.lat!=null?[g.lat,g.lng]:[40.1792,44.4991],g&&g.lat!=null?17:12);
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap contributors"}).addTo(MAP);
