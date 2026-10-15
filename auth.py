@@ -114,4 +114,5 @@ def rate_limit(limiter: RateLimiter, request: Request) -> None:
 
 chat_limiter = RateLimiter(20)    # chat՝ պաշտպանում է AI-ի ծախսերը
 request_limiter = RateLimiter(5)  # հայտեր
+geocode_limiter = RateLimiter(10)  # հասցեի որոնում (Nominatim-ի կանոններ)
 login_limiter = RateLimiter(10)   # մուտք՝ գաղտնաբառի կռահման դեմ

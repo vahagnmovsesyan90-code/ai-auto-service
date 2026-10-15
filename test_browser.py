@@ -25,6 +25,7 @@ try:
     with sync_playwright() as p:
         b = p.chromium.launch()
         ctx = b.new_context(viewport={"width": 1100, "height": 800})
+        ctx.route("https://tile.openstreetmap.org/**", lambda r: r.fulfill(status=200, body=b"", content_type="image/png"))   # քարտեզի նկարները իրական չեն բեռնվում
         page = ctx.new_page()
         page.on("pageerror", lambda e: errors.append("pageerror: " + str(e)))
         page.on("console", lambda m: errors.append("console: " + m.text) if m.type == "error" else None)
@@ -128,6 +129,7 @@ try:
         expect(a.locator("[data-stage]").first).to_have_value("declined"); expect(a.locator("[data-reason]").first).to_have_value("price")
         a.locator("[data-stage]").first.select_option("booked")                               # պատճառը թաքնվում է
         expect(a.locator("[data-reason]").first).to_be_hidden()
+        time.sleep(1)                                          # սպասում ենք պահպանմանը և վերանկարմանը (հին toast-ը դեռ երևում է)
         a.locator("[data-stage]").first.select_option("declined"); a.locator("[data-reason]").first.select_option("price")
         expect(a.locator("[data-stage]").first).to_have_value("declined")
         # հաշվետվություն
@@ -209,6 +211,71 @@ try:
         expect(a.locator("#toast")).to_contain_text("նշանակվեց")
         a.screenshot(path="shots/admin_assign.png")
         print("Գարաժների մուտք և հայտի նշանակում (ադմին) ✓")
+
+        # --- Գարաժի տեղը քարտեզում և «Երթուղի» կոճակը ---
+        def spd(): return next(g for g in api("/garages") if g["name"] == "Speed Service")
+        def wait_api(cond):
+            for _ in range(40):
+                if cond(): return
+                time.sleep(0.25)
+            raise AssertionError("սերվերի վիճակը չփոխվեց")
+        PNG = bytes.fromhex("89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d49444154789c6360000002000001e221bc330000000049454e44ae426082")
+        gctx = b.new_context(viewport={"width": 1100, "height": 900}, geolocation={"latitude": 40.1850, "longitude": 44.5150, "accuracy": 25},
+                             permissions=["geolocation"])
+        gctx.route("https://tile.openstreetmap.org/**", lambda r: r.fulfill(body=PNG, content_type="image/png"))   # իրական տեղադրանքներ չենք բեռնում
+        gp = gctx.new_page(); gp.on("pageerror", lambda e: errors.append("pageerror: " + str(e)))
+        gp.goto(BASE + "/panel"); gp.fill("#pw", "pw"); gp.click("#go"); expect(gp.locator("#app")).to_be_visible()
+        gp.click("[data-t=garages]"); gp.get_by_role("button", name="Speed Service").click()
+        expect(gp.locator("#map .leaflet-tile-pane")).to_be_attached()
+        expect(gp.locator("#locSave")).to_be_disabled()                                          # կետ դեռ չկա
+        expect(gp.locator("#main")).to_contain_text("Կետը դեռ հաստատված չէ")
+        assert api("/garages")[2]["lat"] is None or True
+        # 1) «Ես գարաժում եմ»՝ GPS, ցույց է տալիս ճշտությունը, բայց ինքնուրույն ՉԻ պահպանում
+        gp.click("#locHere")
+        expect(gp.locator("#locMsg")).to_contain_text("±25 մ"); expect(gp.locator("#locSave")).to_be_enabled()
+        expect(gp.locator("#map .pin")).to_be_visible()
+        assert all(g["lat"] is None for g in api("/garages")), "GPS-ը չպետք է ինքնուրույն պահպանի"
+        # 2) քարտեզին սեղմելով կետը տեղափոխվում է
+        box = gp.locator("#map").bounding_box()
+        gp.mouse.click(box["x"] + 80, box["y"] + 80)
+        gp.click("#locSave"); wait_api(lambda: spd()["lat"] is not None)
+        sp = next(g for g in api("/garages") if g["name"] == "Speed Service")
+        assert sp["lat"] is not None and abs(sp["lat"] - 40.185) < 0.01 and sp["lat"] != 40.185, sp   # քարտեզին սեղմած կետը, ոչ GPS-ը
+        expect(gp.locator("#main")).to_contain_text("Կետը հաստատված է")
+        # 3) հասցեով որոնում (Nominatim-ի պատասխանը փոխարինված է)
+        gp.route("**/admin/geocode", lambda r: r.fulfill(json={"found": True, "lat": 40.2000, "lng": 44.5300, "label": "x"}))
+        gp.fill("#ga", "Նոր փողոց 5"); gp.click("#locFind")
+        expect(gp.locator("#locMsg")).to_contain_text("ՍՏՈՒԳԵՔ")
+        assert next(g for g in api("/garages") if g["name"] == "Speed Service")["lat"] == sp["lat"]   # որոնումը չի պահպանում
+        gp.click("#locSave"); wait_api(lambda: (spd()["lat"] or 0) > 40.19999)
+        sp2 = next(g for g in api("/garages") if g["name"] == "Speed Service")
+        assert abs(sp2["lat"] - 40.2) < 1e-6 and sp2["address"] == "Նոր փողոց 5", sp2               # հասցեն և կետը միասին
+        # 4) միայն հասցեն փոխելով «Պահպանել»՝ հին կետը հանվում է
+        gp.fill("#ga", "Մեկ այլ փողոց 9"); gp.click("#saveG"); wait_api(lambda: spd()["lat"] is None)
+        expect(gp.locator("#main")).to_contain_text("Կետը դեռ հաստատված չէ")
+        assert next(g for g in api("/garages") if g["name"] == "Speed Service")["lat"] is None
+        gp.screenshot(path="shots/admin_map.png")
+        # վերականգնում ենք կետը՝ chat-ի ստուգման համար
+        gp.mouse.click(box["x"] + 120, box["y"] + 120); gp.click("#locSave"); wait_api(lambda: spd()["lat"] is not None)
+        sp3 = next(g for g in api("/garages") if g["name"] == "Speed Service")
+        gctx.close()
+        # chat. «Երթուղի»՝ միայն կետ ունեցող գարաժի քարտում
+        rp = b.new_context(viewport={"width": 420, "height": 800}).new_page()
+        rp.goto(BASE + "/app"); rp.fill("#in", "արգելակ ճռռոց"); rp.press("#in", "Enter")
+        cards_ = rp.locator(".m.bot").last.locator(".gc"); expect(cards_).to_have_count(3)
+        assert rp.get_by_role("button", name="Երթուղի").count() == 1, "կոճակը միայն մեկ գարաժի քարտում պետք է լինի"
+        sc = cards_.filter(has_text="Speed Service")
+        expect(sc.get_by_role("button", name="Թողնել հայտ")).to_be_visible(); expect(sc.get_by_role("button", name="Կարծիքներ")).to_be_visible()
+        expect(sc.locator(".maps")).to_be_hidden()
+        sc.get_by_role("button", name="Երթուղի").click()
+        ll = "%.6f,%.6f" % (sp3["lat"], sp3["lng"])
+        hrefs = {sc.locator(".maps a").nth(i).inner_text(): sc.locator(".maps a").nth(i).get_attribute("href") for i in range(3)}
+        assert hrefs["Google Maps"] == f"https://www.google.com/maps/dir/?api=1&destination={ll}&travelmode=driving", hrefs
+        assert hrefs["Yandex Maps"] == f"https://yandex.ru/maps/?rtext=~{ll}&rtt=auto" and hrefs["Waze"] == f"https://waze.com/ul?ll={ll}&navigate=yes", hrefs
+        assert "origin" not in hrefs["Google Maps"]                      # սկիզբը վարորդի ընթացիկ տեղն է. մենք այն չենք իմանում
+        assert rp.evaluate("document.documentElement.scrollWidth") <= 421
+        rp.screenshot(path="shots/chat_route.png")
+        print("Գարաժի տեղը քարտեզում (GPS, քարտեզ, հասցե, հասցեի փոփոխության ժամանակ կետի հանում) և «Երթուղի» կոճակը ✓")
 
         # Session և logout
         a.reload(); expect(a.locator("#app")).to_be_visible()                  # sessionStorage-ը պահում է մուտքը

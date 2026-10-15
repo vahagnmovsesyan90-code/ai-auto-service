@@ -22,3 +22,5 @@ services:
         generateValue: true
       - key: ADMIN_PASSWORD       # Render-ը կհարցնի ստեղծելիս
         sync: false
+      - key: NOMINATIM_CONTACT    # ձեր էլ. փոստը՝ հասցեի որոնման համար (OSM-ի կանոն)
+        sync: false

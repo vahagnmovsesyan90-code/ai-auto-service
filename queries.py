@@ -19,7 +19,7 @@ def all_garages() -> list[Garage]:
         offers = c.execute("SELECT * FROM garage_services").fetchall()
     result = []
     for r in garages:
-        g = Garage(r["id"], r["name"], r["address"], r["phone"])
+        g = Garage(r["id"], r["name"], r["address"], r["phone"], r["lat"], r["lng"])
         for h in hours:
             if h["garage_id"] == g.id:
                 g.hours[h["weekday"]] = (time.fromisoformat(h["open_time"]),
@@ -92,9 +92,22 @@ def create_garage(name: str, address: str, phone: str) -> int:
 
 
 def update_garage(garage_id: int, name: str, address: str, phone: str) -> bool:
+    """Եթե հասցեն փոխվել է, հին կետը հանվում է. վարորդներին սխալ տեղ չենք ուղարկում,
+    մինչև սեփականատերը նոր կետը չհաստատի։"""
     with connect() as c:
-        return c.execute("UPDATE garages SET name=?, address=?, phone=? WHERE id=?",
-                         (name, address, phone, garage_id)).rowcount == 1
+        old = c.execute("SELECT address FROM garages WHERE id=?", (garage_id,)).fetchone()
+        if old is None:
+            return False
+        changed = (old["address"] or "").strip() != address.strip()
+        c.execute("UPDATE garages SET name=?, address=?, phone=?, lat=CASE WHEN ? THEN NULL ELSE lat END, "
+                  "lng=CASE WHEN ? THEN NULL ELSE lng END WHERE id=?",
+                  (name, address, phone, changed, changed, garage_id))
+        return True
+
+
+def set_garage_location(garage_id: int, lat: float | None, lng: float | None) -> bool:
+    with connect() as c:
+        return c.execute("UPDATE garages SET lat=?, lng=? WHERE id=?", (lat, lng, garage_id)).rowcount == 1
 
 
 def delete_garage(garage_id: int) -> bool:

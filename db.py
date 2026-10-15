@@ -100,7 +100,8 @@ _ready: set[str] = set()
 def _migrate(conn: sqlite3.Connection) -> None:
     """Հին բազաներին ավելացնում է նոր սյուները (Փուլ 5-ի բազան չի կորչում)։"""
     cols = {r[1] for r in conn.execute("PRAGMA table_info(garages)")}
-    for name, decl in (("login", "TEXT"), ("password_hash", "TEXT"), ("telegram_chat_id", "INTEGER")):
+    for name, decl in (("login", "TEXT"), ("password_hash", "TEXT"), ("telegram_chat_id", "INTEGER"),
+                       ("lat", "REAL"), ("lng", "REAL")):
         if name not in cols:
             conn.execute(f"ALTER TABLE garages ADD COLUMN {name} {decl}")
     conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_garages_login ON garages(login) WHERE login IS NOT NULL")

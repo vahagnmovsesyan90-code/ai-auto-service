@@ -29,6 +29,8 @@ class Garage:
     name: str
     address: str
     phone: str
+    lat: float | None = None   # հաստատված կետ քարտեզի վրա (երթուղու համար)
+    lng: float | None = None
     # օր -> (բացում, փակում); եթե օրը բացակայում է, գարաժը փակ է
     hours: dict[int, tuple[time, time]] = field(default_factory=dict)
     # service_id -> GarageService

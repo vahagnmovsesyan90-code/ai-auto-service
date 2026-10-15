@@ -570,6 +570,69 @@ assert "հայերեն տառերով" in chat.system_prompt()
 print("«Իմ հայտերը»-ի ստուգման և հայերեն տառերի թեստերն անցան ✓")
 
 # =====================================================================
+# Գարաժի տեղը քարտեզում և «Երթուղի»
+# =====================================================================
+import geo
+assert all(g["lat"] is None for g in c.get("/garages").json())                                  # սկզբում կետ չկա
+cards0 = c.post("/chat", json={"messages": [{"role": "user", "content": "արգելակ ճռռոց"}]}).json()["cards"]
+assert all(x["lat"] is None and x["lng"] is None for x in cards0)                                # չհաստատված կետը չի ուղարկվում
+LOC = {"lat": 40.1811, "lng": 44.5136}
+assert c.put(f"/admin/garages/{R1}/location", json=LOC).status_code == 401                      # առանց մուտքի
+assert c.put(f"/admin/garages/{R2}/location", json=LOC, headers=H1).status_code == 403          # ուրիշի գարաժը՝ չի կարելի
+assert c.put(f"/admin/garages/{R1}/location", json={"lat": 95, "lng": 44}, headers=H1).status_code == 422
+assert c.put(f"/admin/garages/{R1}/location", json={"lat": 0, "lng": 0}, headers=H1).status_code == 422   # Հայաստանից դուրս
+assert c.put(f"/admin/garages/{R1}/location", json={"lat": "x", "lng": 1}, headers=H1).status_code == 422
+assert c.put(f"/admin/garages/{R1}/location", json=LOC, headers=H1).status_code == 200
+assert c.put("/admin/garages/9999/location", json=LOC, headers=H).status_code == 404
+g1 = [g for g in c.get("/admin/data", headers=H1).json()["garages"]][0]
+assert g1["lat"] == LOC["lat"] and g1["lng"] == LOC["lng"]
+assert c.get(f"/garages/{R1}").json()["lat"] == LOC["lat"]
+assert c.put(f"/admin/garages/{cards0[0]['garage_id']}/location", json=LOC, headers=H).status_code == 200            # ադմինը կարող է ցանկացած գարաժի
+cards1 = c.post("/chat", json={"messages": [{"role": "user", "content": "արգելակ ճռռոց"}]}).json()["cards"]
+assert {x["garage_id"]: x["lat"] for x in cards1}[cards0[0]["garage_id"]] == LOC["lat"] and all(x["lat"] is None for x in cards1 if x["garage_id"] != cards0[0]["garage_id"])
+assert json.loads(chat.run_tool("garage_info", {"garage_id": cards0[0]["garage_id"]}))["has_location"] is True
+assert c.delete(f"/admin/garages/{cards0[0]['garage_id']}/location", headers=H).status_code == 200
+# հասցեն չփոխելով (միայն հեռախոս)՝ կետը մնում է
+cur = c.get("/admin/data", headers=H1).json()["garages"][0]
+assert c.put(f"/admin/garages/{R1}", json={"name": cur["name"], "address": cur["address"], "phone": "+374 99 000000"}, headers=H1).status_code == 200
+assert c.get(f"/garages/{R1}").json()["lat"] == LOC["lat"]
+# հասցեն փոխվեց՝ հին կետը հանվում է (վարորդին սխալ տեղ չենք ուղարկում)
+assert c.put(f"/admin/garages/{R1}", json={"name": cur["name"], "address": "Նոր փողոց 5", "phone": "+374 99 000000"}, headers=H1).status_code == 200
+assert c.get(f"/garages/{R1}").json()["lat"] is None
+assert c.put(f"/admin/garages/{R1}/location", json=LOC, headers=H1).status_code == 200
+assert c.delete(f"/admin/garages/{R1}/location", headers=H1).status_code == 200 and c.get(f"/garages/{R1}").json()["lat"] is None
+assert c.delete(f"/admin/garages/{R2}/location", headers=H1).status_code == 403
+
+# geocode. Nominatim-ը փոխարինված է, իրական հարցում չկա
+calls = []
+def fake_fetch(query):
+    calls.append(query)
+    return [{"lat": "40.1792", "lon": "44.4991", "display_name": "Երևան"}] if "երևան" in query.lower() else (
+        [{"lat": "51.5", "lon": "0.1", "display_name": "London"}] if "london" in query else [])
+geo._fetch = fake_fetch; geo._last_call = 0
+geo.time.sleep = lambda s: None                          # թեստում սպասելու կարիք չկա
+assert c.post("/admin/geocode", json={"query": "Երևան, Արշակունյաց 1"}).status_code == 401
+rg = c.post("/admin/geocode", json={"query": "Երևան, Արշակունյաց 1"}, headers=H1).json()
+assert rg["found"] and abs(rg["lat"] - 40.1792) < 1e-6
+assert c.get(f"/garages/{R1}").json()["lat"] is None     # geocode-ը ինքն չի պահպանում
+c.post("/admin/geocode", json={"query": "  ԵՐԵՎԱՆ,  Արշակունյաց 1 ".replace("ԵՐԵՎԱՆ", "երևան")}, headers=H1)
+assert len(calls) == 1, calls
+assert c.post("/admin/geocode", json={"query": "zzz unknown street"}, headers=H1).json() == {"found": False}
+assert c.post("/admin/geocode", json={"query": "London Bridge"}, headers=H1).json() == {"found": False}   # Հայաստանից դուրս արդյունքը չի ընդունվում
+assert c.post("/admin/geocode", json={"query": "ab"}, headers=H1).status_code == 422
+def boom(query): raise OSError("net down")
+geo._fetch = boom
+assert c.post("/admin/geocode", json={"query": "ուրիշ հասցե 77"}, headers=H1).status_code == 503
+geo._fetch = fake_fetch
+auth.geocode_limiter.limit = 3; auth.geocode_limiter.hits.clear()
+codes = [c.post("/admin/geocode", json={"query": f"Երևան {i}"}, headers=H1).status_code for i in range(5)]
+assert codes[:3] == [200, 200, 200] and codes[3:] == [429, 429], codes
+auth.geocode_limiter.limit = 1000
+# Leaflet-ը սերվերից է (ոչ արտաքին CDN)
+assert c.get("/static/leaflet/leaflet.js").status_code == 200 and "unpkg" not in c.get("/panel").text
+print("Քարտեզի և երթուղու թեստերն անցան ✓")
+
+# =====================================================================
 # Հին բազայի migration (Փուլ 5-ի բազան չի կորչում)
 # =====================================================================
 import sqlite3, importlib

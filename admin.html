@@ -9,6 +9,8 @@
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Գարաժի պանել">
+<link rel="stylesheet" href="/static/leaflet/leaflet.css">
+<script src="/static/leaflet/leaflet.js"></script>
 <style>
 :root{--bg:#e9ebec;--panel:#fff;--ink:#1d2529;--mute:#5d6a71;--line:#cfd5d8;--acc:#1f5fbf;--accink:#fff;--bad:#c0392b;--ok:#1b7a4b}
 @media(prefers-color-scheme:dark){:root{--bg:#171c1f;--panel:#222a2e;--ink:#eef1f2;--mute:#9aa7ad;--line:#38434a;--acc:#5b9bff;--accink:#0b1a30;--bad:#ff7b6b;--ok:#4cc58a}}
@@ -45,6 +47,9 @@ td select{max-width:190px}
 #toast.show{opacity:1}#toast.err{background:var(--bad);color:#fff}
 #login{max-width:340px;margin:12vh auto;padding:0 20px}
 :focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.map{height:320px;border-radius:8px;border:1px solid var(--line);margin-top:10px}
+.pin{width:22px;height:22px;border-radius:50% 50% 50% 0;background:#c0392b;border:2px solid #fff;transform:rotate(-45deg);box-shadow:0 1px 4px #0006}
+.warn{color:var(--bad)}
 </style>
 </head>
 <body>
@@ -156,6 +161,13 @@ function garagesView(){
   if(!g)return h+`<div class="box">Դեռ գարաժ չկա։ Սեղմեք «+ Նոր գարաժ»։</div>`;
   h+=`<div class="box"><div class="row"><input id="gn" value="${esc(g.name)}" placeholder="Անվանում" aria-label="Անվանում"><input id="ga" value="${esc(g.address)}" placeholder="Հասցե" aria-label="Հասցե"><input id="gp" value="${esc(g.phone)}" placeholder="Հեռախոս" aria-label="Հեռախոս">
   <button class="btn" id="saveG">Պահպանել</button>${adm?`<button class="btn g" id="delG">Ջնջել գարաժը</button>`:""}</div></div>
+  <div class="box"><b>Գարաժի տեղը քարտեզում</b>
+  <p class="note">${g.lat!=null?"Կետը հաստատված է. վարորդները chat-ում տեսնում են «Երթուղի» կոճակը։":`<span class="warn">Կետը դեռ հաստատված չէ. «Երթուղի» կոճակը վարորդներին չի երևում։</span>`} Եթե փոխեք հասցեն և սեղմեք «Պահպանել», հին կետը հանվում է, մինչև նորը հաստատեք։</p>
+  <div class="row"><button class="btn g" id="locHere">Ես գարաժում եմ</button><button class="btn g" id="locFind">Գտնել հասցեով</button>
+  <button class="btn" id="locSave" disabled>Պահպանել կետը</button>${g.lat!=null?`<button class="btn g" id="locClear">Հանել կետը</button>`:""}</div>
+  <p class="note" id="locMsg">Սեղմեք քարտեզին կամ քաշեք կարմիր կետը՝ ճիշտ մուտքի վրա։</p>
+  <div id="map" class="map"></div>
+  <p class="note">Քարտեզ՝ © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors։</p></div>
   ${adm?`<div class="box"><b>Գարաժի մուտք</b><p class="note">${g.login?`Մուտքանուն՝ <b>${esc(g.login)}</b>։ `:"Մուտք դեռ չկա։ "}Սեփականատերը մտնում է նույն էջով՝ այս մուտքանունով և գաղտնաբառով, և տեսնում է միայն իր գարաժը և հայտերը։ Գաղտնաբառը հետո չի երևում. մոռանալու դեպքում սահմանեք նորը։</p>
   <div class="row"><input id="al" placeholder="Մուտքանուն (լատինատառ)" value="${esc(g.login||"")}" autocomplete="off"><input id="ap" type="password" placeholder="Գաղտնաբառ (նվազ. 8 նիշ)" autocomplete="new-password"><button class="btn" id="saveAcc">Պահպանել մուտքը</button>${g.login?`<button class="btn g" id="delAcc">Հանել մուտքը</button>`:""}</div></div>`:""}
   ${tgBox("garage",g.telegram_linked)}
@@ -179,6 +191,28 @@ function catalogView(){
 function render(){
   document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.t===tab));
   $("#main").innerHTML=tab==="requests"?requestsView():tab==="garages"?garagesView():tab==="report"?reportView():tab==="reviews"?reviewsView():catalogView();
+  if(tab==="garages")initMap();
+}
+// ---- Գարաժի կետը քարտեզում ----
+let MAP=null,MARK=null,DRAFT=null;
+function locMsg(t,bad){const m=$("#locMsg");if(m){m.textContent=t;m.className="note"+(bad?" warn":"")}}
+function setDraft(lat,lng,msg){
+  DRAFT={lat,lng};
+  if(!MAP)return;
+  if(!MARK){MARK=L.marker([lat,lng],{draggable:true,icon:L.divIcon({className:"",html:'<div class="pin"></div>',iconSize:[22,22],iconAnchor:[11,22]})}).addTo(MAP);
+    MARK.on("dragend",()=>{const p=MARK.getLatLng();DRAFT={lat:p.lat,lng:p.lng};$("#locSave").disabled=false;locMsg("Կետը տեղափոխվեց. սեղմեք «Պահպանել կետը»։")})}
+  else MARK.setLatLng([lat,lng]);
+  MAP.setView([lat,lng],Math.max(MAP.getZoom(),17));
+  $("#locSave").disabled=false;if(msg)locMsg(msg);
+}
+function initMap(){
+  if(MAP){MAP.remove();MAP=null;MARK=null}DRAFT=null;
+  const el=$("#map");if(!el||typeof L==="undefined"){if(el)el.textContent="Քարտեզը չբեռնվեց։";return}
+  const g=curG();
+  MAP=L.map(el).setView(g&&g.lat!=null?[g.lat,g.lng]:[40.1792,44.4991],g&&g.lat!=null?17:12);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap contributors"}).addTo(MAP);
+  if(g&&g.lat!=null){setDraft(g.lat,g.lng);$("#locSave").disabled=true}
+  MAP.on("click",e=>setDraft(e.latlng.lat,e.latlng.lng,"Կետը նշված է. սեղմեք «Պահպանել կետը»։"));
 }
 const kw=s=>s.split(",").map(x=>x.trim()).filter(Boolean);
 const curG=()=>D.garages.find(x=>x.id===gsel);
@@ -207,6 +241,28 @@ $("#main").onclick=async e=>{
       await api("PUT",`/garages/${gsel}/account`,{login:$("#al").value.trim(),password:pw});await refresh();render();toast("Մուտքը պահպանվեց")}
     else if(t.id==="delAcc"){if(armed(t,"Հանել մուտքը")){await api("DELETE",`/garages/${gsel}/account`);await refresh();render();toast("Մուտքը հանվեց")}}
     else if(t.id==="addG"){const r=await api("POST","/garages",{name:"Նոր գարաժ"});await refresh();gsel=r.id;render();toast("Գարաժը ավելացվեց")}
+    else if(t.id==="locHere"){
+      if(!navigator.geolocation){toast("Դիտարկիչը տեղորոշում չի աջակցում",true);return}
+      locMsg("Տեղորոշվում է…");
+      navigator.geolocation.getCurrentPosition(p=>{const a=Math.round(p.coords.accuracy);
+        setDraft(p.coords.latitude,p.coords.longitude,`Ձեր տեղը գտնվեց (±${a} մ). ստուգեք քարտեզին և քաշեք կետը մուտքի վրա, ապա պահպանեք։`+(a>100?" Ճշտությունը ցածր է։":""));
+        if(a>100)locMsg(`Ճշտությունը ցածր է (±${a} մ). ուղղեք կետը ձեռքով, ապա պահպանեք։`,true)},
+        err=>locMsg("Տեղորոշումը չհաջողվեց (թույլտվություն չկա կամ GPS-ը անջատված է). նշեք կետը քարտեզին ձեռքով։",true),{enableHighAccuracy:true,timeout:15000});
+    }
+    else if(t.id==="locFind"){
+      const qy=$("#ga").value.trim();if(qy.length<3){toast("Նախ գրեք հասցեն",true);return}
+      locMsg("Որոնվում է…");
+      const r=await api("POST","/geocode",{query:qy.toLowerCase().includes("հայաստան")||qy.toLowerCase().includes("armenia")?qy:qy+", Հայաստան"});
+      if(r.found)setDraft(r.lat,r.lng,"Գտնվեց մոտավոր կետ. ՍՏՈՒԳԵՔ քարտեզին, անհրաժեշտության դեպքում քաշեք մուտքի վրա, ապա սեղմեք «Պահպանել կետը»։");
+      else locMsg("Հասցեն չգտնվեց. նշեք կետը քարտեզին ձեռքով։",true);
+    }
+    else if(t.id==="locSave"){
+      if(!DRAFT)return;const g=curG();
+      if($("#ga").value.trim()!==(g.address||"").trim())  // նախ պահպանում ենք նոր հասցեն (այն հանում է հին կետը), հետո՝ նոր կետը
+        await api("PUT","/garages/"+gsel,{name:$("#gn").value.trim()||"Անանուն",address:$("#ga").value,phone:$("#gp").value});
+      await api("PUT",`/garages/${gsel}/location`,{lat:DRAFT.lat,lng:DRAFT.lng});await refresh();render();toast("Կետը պահպանվեց");
+    }
+    else if(t.id==="locClear"){await api("DELETE",`/garages/${gsel}/location`);await refresh();render();toast("Կետը հանվեց")}
     else if(t.id==="saveG"){await api("PUT","/garages/"+gsel,{name:$("#gn").value.trim()||"Անանուն",address:$("#ga").value,phone:$("#gp").value});await refresh();render();toast("Պահպանվեց")}
     else if(t.id==="delG"){if(armed(t,"Ջնջել գարաժը")){await api("DELETE","/garages/"+gsel);gsel=null;await refresh();render();toast("Գարաժը ջնջվեց")}}
     else if(t.id==="saveH"){

@@ -11,6 +11,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from data import DAY_NAMES, Garage
@@ -25,7 +26,7 @@ from auth import RateLimiter, chat_limiter, rate_limit, request_limiter
 from queries import (all_garages, all_services, find_services, garages_for_service, get_garage,
                      get_service, is_open, open_garages)
 
-APP_VERSION = "2.4"
+APP_VERSION = "2.5"
 
 
 def html_page(name: str) -> HTMLResponse:
@@ -47,6 +48,7 @@ async def lifespan(_app):
 app = FastAPI(title="AI Auto Service API", version=APP_VERSION, lifespan=lifespan)
 app.include_router(admin.router)
 pwa.register(app)
+app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static")
 TZ = ZoneInfo("Asia/Yerevan")
 
 
@@ -76,6 +78,8 @@ class GarageOut(BaseModel):
     phone: str
     hours: list[DayHours]
     rating: RatingOut = RatingOut()
+    lat: float | None = None
+    lng: float | None = None
 
 
 class OfferOut(BaseModel):
@@ -87,7 +91,7 @@ class OfferOut(BaseModel):
 def garage_out(g: Garage, ratings: dict | None = None) -> GarageOut:
     ratings = queries.garage_ratings() if ratings is None else ratings
     return GarageOut(
-        id=g.id, name=g.name, address=g.address, phone=g.phone,
+        id=g.id, name=g.name, address=g.address, phone=g.phone, lat=g.lat, lng=g.lng,
         rating=RatingOut(**queries.rating_of(ratings, g.id)),
         hours=[DayHours(day=DAY_NAMES[d], open=o, close=c)
                for d, (o, c) in sorted(g.hours.items())],
@@ -172,6 +176,8 @@ class CardOut(BaseModel):
     duration_min: int
     open_now: bool
     rating: RatingOut
+    lat: float | None = None
+    lng: float | None = None
 
 
 class ChatResponse(BaseModel):

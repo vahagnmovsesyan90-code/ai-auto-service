@@ -42,7 +42,10 @@ header b{border-left:6px solid #f2b705;padding-left:10px}header{flex-wrap:wrap;g
 .gc .acts{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
 .gc button{font:inherit;font-size:14px;cursor:pointer;border-radius:8px;padding:7px 14px}
 .gc .call{background:var(--acc);color:var(--accink);border:0;font-weight:600}
-.gc .rev{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.gc .rev,.gc .rt-btn{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.gc .maps[hidden]{display:none}
+.gc .maps{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;font-size:14px}
+.gc .maps a{color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 12px;text-decoration:none}
 .gc .revs{margin-top:8px;font-size:13px;border-top:1px solid var(--line);padding-top:8px}
 .gc .revs div.one{padding:4px 0}.gc .revs .who{color:var(--mute)}
 .hint{display:flex;gap:8px;flex-wrap:wrap;padding:0 18px 8px;max-width:760px;width:100%;margin:0 auto}
@@ -53,7 +56,7 @@ header b{border-left:6px solid #f2b705;padding-left:10px}header{flex-wrap:wrap;g
 .bar{display:flex;gap:8px;padding:12px 18px;border-top:1px solid var(--line);background:var(--panel)}
 .bar div{display:flex;gap:8px;max-width:724px;width:100%;margin:0 auto}
 input,textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
-.bar input{flex:1}
+.bar input{flex:1;min-width:0}
 #send{font:inherit;cursor:pointer;background:var(--acc);color:var(--accink);border:0;border-radius:8px;padding:0 18px;font-weight:600}
 #send:disabled{opacity:.5;cursor:default}
 dialog{border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);padding:18px;width:min(92vw,400px)}
@@ -140,7 +143,19 @@ function card(c){
         o.append(s,w);if(x.comment){const t=document.createElement("div");t.textContent=x.comment;o.append(t)}revs.append(o)})
     }catch(e){revs.textContent="Չհաջողվեց բեռնել։"}
   };
-  acts.append(call,rev);d.append(top,meta,rt,acts,revs);return d;
+  acts.append(call,rev);
+  const maps=document.createElement("div");maps.className="maps";maps.hidden=true;
+  if(typeof c.lat==="number"&&typeof c.lng==="number"){   // կոճակը միայն հաստատված կետ ունեցող գարաժի համար
+    const rb=document.createElement("button");rb.className="rt-btn";rb.textContent="Երթուղի";rb.setAttribute("aria-expanded","false");
+    const ll=c.lat.toFixed(6)+","+c.lng.toFixed(6);
+    [["Google Maps",`https://www.google.com/maps/dir/?api=1&destination=${ll}&travelmode=driving`],
+     ["Yandex Maps",`https://yandex.ru/maps/?rtext=~${ll}&rtt=auto`],
+     ["Waze",`https://waze.com/ul?ll=${ll}&navigate=yes`]].forEach(([n,u])=>{
+      const a=document.createElement("a");a.href=u;a.target="_blank";a.rel="noopener";a.textContent=n;maps.append(a)});
+    rb.onclick=()=>{maps.hidden=!maps.hidden;rb.setAttribute("aria-expanded",String(!maps.hidden))};
+    acts.append(rb);
+  }
+  d.append(top,meta,rt,acts,maps,revs);return d;
 }
 function renderCards(box,cards,mode){
   box.textContent="";

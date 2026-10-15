@@ -3,6 +3,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY *.py *.html ./
+COPY static ./static
 ENV APP_ENV=production AUTOSERVICE_DB=/data/autoservice.db SEED_SAMPLE=0
 VOLUME /data
 EXPOSE 8000

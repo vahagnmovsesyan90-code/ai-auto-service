@@ -7,8 +7,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 import queries as q
+import geo
 import telegram
-from auth import (DUMMY_HASH, Identity, check_password, hash_password, login_limiter, make_token,
+from auth import (DUMMY_HASH, Identity, check_password, hash_password, geocode_limiter, login_limiter, make_token,
                   rate_limit, require_user, verify_password)
 
 TIME_RE = r"^([01]\d|2[0-3]):[0-5]\d$"
@@ -27,6 +28,15 @@ class GarageIn(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     address: str = Field(default="", max_length=200)
     phone: str = Field(default="", max_length=40)
+
+
+class LocationIn(BaseModel):
+    lat: float = Field(ge=-90, le=90)
+    lng: float = Field(ge=-180, le=180)
+
+
+class GeocodeIn(BaseModel):
+    query: str = Field(min_length=3, max_length=200)
 
 
 class AccountIn(BaseModel):
@@ -109,7 +119,7 @@ def data(user: Identity = Depends(require_user)):
         "services": [{"id": s.id, "name": s.name, "category": s.category,
                       "keywords": list(s.keywords)} for s in q.all_services()],
         "garages": [{
-            "id": g.id, "name": g.name, "address": g.address, "phone": g.phone,
+            "id": g.id, "name": g.name, "address": g.address, "phone": g.phone, "lat": g.lat, "lng": g.lng,
             "login": accounts[g.id]["login"], "telegram_linked": accounts[g.id]["telegram_linked"],
             "hours": [{"weekday": d, "open": f"{o:%H:%M}", "close": f"{c:%H:%M}"}
                       for d, (o, c) in sorted(g.hours.items())],
@@ -134,6 +144,34 @@ def update_garage(garage_id: int, body: GarageIn, user: Identity = Depends(requi
     need_garage(user, garage_id)
     found(q.update_garage(garage_id, body.name, body.address, body.phone), "Գարաժը")
     return {"ok": True}
+
+
+@router.put("/garages/{garage_id}/location")
+def set_location(garage_id: int, body: LocationIn, user: Identity = Depends(require_user)):
+    """Սեփականատերը (կամ ադմինը) հաստատում է գարաժի կետը քարտեզի վրա։"""
+    need_garage(user, garage_id)
+    if not geo.in_armenia(body.lat, body.lng):
+        raise HTTPException(422, "Կետը Հայաստանից դուրս է. ստուգեք քարտեզը")
+    found(q.set_garage_location(garage_id, body.lat, body.lng), "Գարաժը")
+    return {"ok": True}
+
+
+@router.delete("/garages/{garage_id}/location")
+def clear_location(garage_id: int, user: Identity = Depends(require_user)):
+    need_garage(user, garage_id)
+    found(q.set_garage_location(garage_id, None, None), "Գարաժը")
+    return {"ok": True}
+
+
+@router.post("/geocode")
+def geocode(body: GeocodeIn, request: Request, user: Identity = Depends(require_user)):
+    """Հասցեի որոնում քարտեզում (միայն կոճակով). արդյունքը ՉԻ պահպանվում, միայն ցույց է տրվում նախադիտման համար։"""
+    rate_limit(geocode_limiter, request)
+    try:
+        res = geo.geocode(body.query.strip())
+    except RuntimeError as e:
+        raise HTTPException(503, str(e))
+    return {"found": res is not None, **(res or {})}
 
 
 @router.delete("/garages/{garage_id}")

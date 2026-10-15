@@ -59,7 +59,8 @@ def tool_garages_for_service(service_id: int, open_now: bool = False) -> list:
         out.append({"garage_id": g.id, "name": g.name, "address": g.address, "phone": g.phone,
                     "service_id": service_id, "service_name": service.name,
                     "price_amd": price, "duration_min": g.services[service_id].duration_min,
-                    "open_now": is_open(g, now), "rating": rating_of(ratings, g.id)})
+                    "open_now": is_open(g, now), "rating": rating_of(ratings, g.id),
+                    "lat": g.lat, "lng": g.lng})
     return out
 
 
@@ -68,6 +69,7 @@ def tool_garage_info(garage_id: int) -> dict:
     if g is None:
         return {"error": "Գարաժը չի գտնվել"}
     return {"id": g.id, "name": g.name, "address": g.address, "phone": g.phone,
+            "has_location": g.lat is not None,
             "rating": rating_of(garage_ratings(), g.id),
             "hours": {DAY_NAMES[d]: f"{o:%H:%M}-{c:%H:%M}" for d, (o, c) in sorted(g.hours.items())},
             "closed_days": [DAY_NAMES[d] for d in range(7) if d not in g.hours],
