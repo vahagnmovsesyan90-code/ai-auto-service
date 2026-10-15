@@ -48,7 +48,9 @@ async def lifespan(_app):
 app = FastAPI(title="AI Auto Service API", version=APP_VERSION, lifespan=lifespan)
 app.include_router(admin.router)
 pwa.register(app)
-app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static")
+_static = Path(__file__).parent / "static"
+if _static.is_dir():   # եթե թղթապանակը չվերբեռնվեց, սերվերը չի ընկնում (միայն քարտեզը չի երևա)
+    app.mount("/static", StaticFiles(directory=_static), name="static")
 TZ = ZoneInfo("Asia/Yerevan")
 
 
