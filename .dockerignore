@@ -1,4 +1,9 @@
 __pycache__/
 *.db
 .env
-test_api.py
+.venv/
+.git/
+.idea/
+shots/
+webview/
+downloads/

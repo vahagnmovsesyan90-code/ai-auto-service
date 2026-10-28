@@ -1,0 +1,8 @@
+out/
+node_modules/
+.dockerhome/
+android/app/google-services.json
+android/keystore.properties
+android/*.jks
+ios/*.xcodeproj
+desktop/build/*.metainfo.xml

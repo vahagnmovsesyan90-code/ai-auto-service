@@ -1,0 +1,7 @@
+# Dev ռեժիմ. `docker compose up`-ը սա ավտոմատ միացնում է docker-compose.yml-ին։
+# Կոդը mount է արված, uvicorn-ը reload է անում ֆայլի փոփոխության դեպքում, պարզ ռեժիմի գաղտնաբառը՝ .env-ից։
+services:
+  app:
+    volumes:
+      - .:/app
+    command: ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--proxy-headers", "--forwarded-allow-ips", "*"]

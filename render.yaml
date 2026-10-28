@@ -1,4 +1,11 @@
-# Render Blueprint. անվճար դեմո (քնում է 15 րոպե անգործությունից հետո, տվյալները չեն պահվում)
+# Render Blueprint. անվճար դեմո (web-ը քնում է 15 րոպե անգործությունից հետո)։
+# Բազան՝ Render Postgres. անվճար պլանը 30 օր հետո ջնջվում է, իրական գարաժի համար վերցրեք վճարովին։
+databases:
+  - name: ai-auto-service-db
+    plan: free
+    databaseName: autoservice
+    user: autoservice
+
 services:
   - type: web
     name: ai-auto-service
@@ -14,8 +21,10 @@ services:
         value: production
       - key: SEED_SAMPLE          # 1՝ ամեն սկսելիս նմուշային գարաժներ (դեմոյի համար)
         value: "1"
-      - key: AUTOSERVICE_DB
-        value: /tmp/autoservice.db
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ai-auto-service-db
+          property: connectionString
       - key: AI_DAILY_LIMIT
         value: "100"
       - key: SECRET_KEY

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="hy">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Auto Service — Ներբեռնել հավելվածը</title>
+<meta name="theme-color" content="#FFFFFF">
+<meta name="color-scheme" content="light">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Armenian:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/static/ui.css?v=__APP_VERSION__">
+<style>
+/* Հավելվածի ներբեռնման էջ. սարքը ճանաչվում է User-Agent-ով, նրա քարտը վերևում է և ընդգծված (TutorVoice-ի /download էջի օրինակով) */
+main.page{max-width:960px;padding-top:40px}
+.dhead{text-align:center;max-width:620px;margin:0 auto;display:flex;flex-direction:column;align-items:center;gap:14px}
+.dhead .ic{width:56px;height:56px;border-radius:16px;background:var(--soft);color:var(--acc);display:grid;place-items:center}.dhead .ic svg{width:28px;height:28px}
+.dhead h1{margin:0;font-size:32px;line-height:1.2;font-weight:700;letter-spacing:-.02em}
+.dhead p{margin:0;font-size:15px;line-height:1.55;color:var(--mute)}
+.inapp{display:flex;align-items:center;gap:10px;max-width:620px;margin:0 auto;padding:12px 16px;border-radius:14px;background:var(--soft);color:var(--acc2);font-size:14px;font-weight:500}.inapp svg{width:20px;height:20px;flex:none}
+.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;align-items:start}
+.pc{display:flex;flex-direction:column;gap:18px;padding:24px;border-radius:20px}
+.pc.mine{grid-column:1/-1;border:2px solid var(--acc);box-shadow:var(--sh2)}
+.pc .top{display:flex;align-items:flex-start;gap:14px}
+.pc .os{width:48px;height:48px;border-radius:14px;background:var(--ink);color:#fff;display:grid;place-items:center;flex:none}.pc .os svg{width:24px;height:24px}
+.pc h2{margin:0;font-size:18px;font-weight:700;line-height:1.25}
+.pc .hint{margin:2px 0 0;font-size:13px;color:var(--mute)}
+.pc .you{margin-left:auto;flex:none}
+.build{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 16px;border-radius:14px;background:var(--bg);border:1px solid var(--line2)}
+.build .btn.primary{height:44px}
+.build .meta{font-size:14px;color:var(--ink2);font-weight:500}.build .meta small{color:var(--dim);font-weight:400}
+.builds{display:flex;flex-direction:column;gap:10px}
+.store{display:flex;align-items:center;justify-content:center;gap:8px;height:46px;border-radius:12px;background:var(--ink);color:#fff;font-weight:600}.store:hover{background:#263129;color:#fff}.store svg{width:18px;height:18px}
+.web{padding:14px 16px;border-radius:14px;background:var(--bg);border:1px solid var(--line2);display:flex;flex-direction:column;gap:6px}
+.web b{font-size:14px;font-weight:600;color:var(--ink2)}.web p{margin:0;font-size:13px;line-height:1.5;color:var(--mute)}
+.web .btn{width:fit-content;margin-top:6px}
+.fine{font-size:12px;line-height:1.5;color:var(--dim)}
+.vline{text-align:center;font-size:13px;color:var(--dim)}
+.emptybox{display:flex;flex-direction:column;align-items:center;gap:8px;max-width:520px;margin:0 auto;padding:40px 24px;border-radius:20px;text-align:center}
+.emptybox .ic{width:64px;height:64px;border-radius:18px;background:var(--bg);color:var(--dim);display:grid;place-items:center}.emptybox .ic svg{width:30px;height:30px}
+.emptybox b{font-size:17px;font-weight:700}.emptybox p{margin:0;font-size:14px;color:var(--mute)}
+.foot{text-align:center;font-size:14px;color:var(--mute)}.foot a{font-weight:600}
+.err{color:var(--bad);text-align:center;padding:30px 0}
+@media(max-width:700px){.cards{grid-template-columns:1fr}.pc{padding:18px}.dhead h1{font-size:26px}main.page{padding-top:24px}}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="brand" href="/app"><span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span><span class="ttl"><b>AI Auto Service</b><span class="sub">Ձեր ավտոսերվիսի օգնականը</span></span></a>
+  <nav class="hr" aria-label="Հիմնական"><a id="homeBtn" class="inst" href="/app"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span class="lbl">Օգնական</span></a><a id="mineBtn" class="inst" href="/my"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6M9 16h6"/></svg><span class="lbl">Իմ հայտերը</span></a><a id="allBtn" class="inst" href="/catalog"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21V8l9-5 9 5v13"/><path d="M7 21v-8h10v8"/><path d="M7 17h10"/></svg><span class="lbl">Գարաժներ</span></a><a id="appBtn" class="inst on" href="/download"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg><span class="lbl">Հավելված</span></a></nav>
+  <span class="hspace"></span>
+</div></header>
+<main class="page" id="box">
+  <div class="dhead"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg></span>
+    <h1>Ներբեռնել հավելվածը</h1>
+    <p>Նույն AI Auto Service-ը՝ հեռախոսի և համակարգչի հավելվածով. արագ մուտք օգնականին, գարաժներին և հայտերին առանց բրաուզերի։ Գարաժի սեփականատերը նույն հավելվածով կառավարում է իր հայտերը։</p></div>
+  <div id="inapp" class="inapp" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg>Դուք արդեն հավելվածով եք բացել։ Ներբեռնելու կարիք չկա։</div>
+  <div id="list"><div class="vline">Բեռնվում է…</div></div>
+  <p class="foot">Հավելվածը պետք չէ՞ <a href="/app">Բացեք օգնականը բրաուզերում</a></p>
+</main>
+<div class="ver">v__APP_VERSION__</div>
+<script>
+(function(){try{const cut=Date.now()-90*86400000,l=JSON.parse(localStorage.getItem("pending_reviews")||"[]").filter(x=>x.ts>cut),n=l.filter(x=>!x.done).length;document.querySelector("#mineBtn .lbl").textContent="Իմ հայտերը"+(n?` (${n})`:"")}catch(e){}})();
+const ua=navigator.userAgent||"",isIpad=/Macintosh/.test(ua)&&navigator.maxTouchPoints>1;
+const os=/Android/i.test(ua)?"android":(/iPhone|iPad|iPod/i.test(ua)||isIpad)?"ios":/Windows/i.test(ua)?"windows":/Mac OS X|Macintosh/i.test(ua)?"macos":/Linux|X11/i.test(ua)?"linux":null;
+if(/AiAutoApp/.test(ua))document.getElementById("inapp").hidden=false;
+const P={android:{name:"Android",hint:"Հեռախոս և պլանշետ, Android 8-ից բարձր",web:"Բացեք կայքը Chrome-ով և ավելացրեք գլխավոր էկրանին (մենյու → «Ավելացնել գլխավոր էկրանին»)։"},
+  ios:{name:"iPhone / iPad",hint:"iPhone և iPad, iOS 15-ից բարձր",web:"Բացեք կայքը Safari-ով → «Կիսվել» → «Ավելացնել գլխավոր էկրանին»։ Հավելվածը կբացվի առանձին պատուհանով, առանց հասցեագոտու։"},
+  windows:{name:"Windows",hint:"Windows 10 և 11, 64-բիթ",web:"Բացեք կայքը Chrome-ով կամ Edge-ով և ավելացրեք էջանիշերին։"},
+  macos:{name:"macOS",hint:"macOS 11-ից բարձր, Intel և Apple Silicon",web:"Բացեք կայքը Safari-ով կամ Chrome-ով և ավելացրեք Dock-ին (Safari → «Ֆայլ» → «Ավելացնել Dock-ին»)։"},
+  linux:{name:"Linux",hint:"AppImage (ցանկացած բաշխում) կամ .deb (Debian / Ubuntu)",web:"Բացեք կայքը բրաուզերով և ավելացրեք էջանիշերին։"}};
+const OSICO={android:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 9h12v8a1 1 0 0 1-1 1h-1v3a1.5 1.5 0 0 1-3 0v-3h-2v3a1.5 1.5 0 0 1-3 0v-3H7a1 1 0 0 1-1-1zM4.5 9A1.5 1.5 0 0 1 6 10.5v4a1.5 1.5 0 0 1-3 0v-4A1.5 1.5 0 0 1 4.5 9m15 0a1.5 1.5 0 0 1 1.5 1.5v4a1.5 1.5 0 0 1-3 0v-4A1.5 1.5 0 0 1 19.5 9M8.2 3.2l1 1.7A6.4 6.4 0 0 1 12 4.3c1 0 2 .2 2.8.6l1-1.7a.4.4 0 0 1 .7.4l-1 1.7A5.9 5.9 0 0 1 18 8H6a5.9 5.9 0 0 1 2.5-2.7l-1-1.7a.4.4 0 0 1 .7-.4M9.5 6.4a.6.6 0 1 0 0 1.2.6.6 0 0 0 0-1.2m5 0a.6.6 0 1 0 0 1.2.6.6 0 0 0 0-1.2"/></svg>',
+  apple:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.4 12.6c0-2.2 1.8-3.3 1.9-3.4-1-1.5-2.6-1.7-3.2-1.7-1.4-.1-2.7.8-3.3.8s-1.7-.8-2.9-.8c-1.5 0-2.9.9-3.6 2.2-1.6 2.7-.4 6.7 1.1 8.9.7 1.1 1.6 2.3 2.8 2.2 1.1 0 1.5-.7 2.9-.7s1.7.7 2.9.7 2-1.1 2.7-2.1c.9-1.2 1.2-2.4 1.2-2.4s-2.4-.9-2.5-3.7M14.2 5.7c.6-.8 1-1.9.9-3-.9 0-2 .6-2.7 1.4-.6.7-1.1 1.8-.9 2.9 1 0 2.1-.5 2.7-1.3"/></svg>',
+  windows:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.6 10.2 4.6v7.1H3zm8.5-1.2L21 3v8.7h-9.5zM3 12.9h7.2V20L3 19zm8.5 0H21V21l-9.5-1.3z"/></svg>',
+  linux:'<svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2c2 0 3.5 1.6 3.5 3.6 0 .7-.2 1.4-.6 2 1.7 1.3 2.7 3.5 3.2 5.6.3 1.2.8 2 1.4 2.8.6.8.2 1.9-.8 2.1-.9.2-1.7-.2-2.2-.9-.1.8-.2 1.6-.4 2.2h1.1a1 1 0 1 1 0 2H6.8a1 1 0 1 1 0-2h1.1c-.2-.6-.3-1.4-.4-2.2-.5.7-1.3 1.1-2.2.9-1-.2-1.4-1.3-.8-2.1.6-.8 1.1-1.6 1.4-2.8.5-2.1 1.5-4.3 3.2-5.6-.4-.6-.6-1.3-.6-2C8.5 3.6 10 2 12 2Z"/><ellipse cx="10.7" cy="5.4" rx=".7" ry=".95" fill="#16201B"/><ellipse cx="13.3" cy="5.4" rx=".7" ry=".95" fill="#16201B"/><ellipse cx="12" cy="7" rx="1.1" ry=".8" fill="#16201B"/></svg>'};
+const DL='<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>',EXT='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14 21 3"/></svg>';
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const mb=b=>(b/1048576).toFixed(1)+" ՄԲ";
+fetch("/api/downloads").then(r=>r.json()).then(d=>{
+  const keys=["android","ios","windows","macos","linux"].sort((a,b)=>(b===os)-(a===os)||((d.platforms[b]||[]).length||d.stores[b]?1:0)-((d.platforms[a]||[]).length||d.stores[a]?1:0));
+  const any=keys.some(k=>(d.platforms[k]||[]).length||d.stores[k]);
+  if(!any){document.getElementById("list").innerHTML=`<div class="card emptybox"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><b>Փաթեթները դեռ պատրաստ չեն</b><p>Առայժմ օգտվեք բրաուզերի տարբերակից՝ նույն հնարավորություններով։</p><a class="btn primary" href="/app" style="margin-top:10px">Բացել օգնականը</a></div>`;return}
+  document.getElementById("list").innerHTML=`<div class="cards">${keys.map(k=>{const p=P[k],builds=d.platforms[k]||[],store=d.stores[k];
+    return `<section class="card pc ${k===os?"mine":""}"><div class="top"><span class="os">${OSICO[k==="ios"||k==="macos"?"apple":k]}</span><div><h2>${p.name}</h2><p class="hint">${p.hint}</p></div>${k===os?`<span class="chip open you">Ձեր սարքը</span>`:""}</div>
+    ${store?`<a class="store" href="${esc(store)}" target="_blank" rel="noopener">${EXT}Բացել խանութում</a>`:""}
+    ${builds.length?`<div class="builds">${builds.map(b=>`<div class="build"><a class="btn primary" href="${esc(b.url)}" download>${DL}Ներբեռնել</a><span class="meta">${esc(b.ext.toUpperCase())}${b.arch?" · "+esc(b.arch):""} · ${mb(b.size)} <small>· v${esc(b.version)} · ${esc(b.released_at)}</small></span></div>`).join("")}
+    ${k==="android"&&!store?`<p class="fine">APK-ն տեղադրելիս Android-ը կհարցնի «անհայտ աղբյուրից» տեղադրելու թույլտվություն. թույլատրեք բրաուզերին և շարունակեք։</p>`:""}
+    ${k==="windows"?`<p class="fine">Ինստալյատորը ստորագրված չէ. SmartScreen-ի զգուշացման դեպքում սեղմեք «Լրացուցիչ» → «Գործարկել ամեն դեպքում»։</p>`:""}
+    ${k==="macos"?`<p class="fine">Առաջին բացմանը macOS-ը կարող է զգուշացնել. Համակարգի կարգավորումներ → Գաղտնիություն և անվտանգություն → «Բացել ամեն դեպքում»։</p>`:""}</div>`:""}
+    ${!builds.length&&!store?`<div class="web"><b>Առանց տեղադրման՝ վեբ-հավելված</b><p>${p.web}</p><a class="btn" href="/app">${EXT}Բացել կայքը</a></div>`:""}</section>`}).join("")}</div>
+  ${d.version?`<p class="vline">Վերջին տարբերակը՝ ${esc(d.version)}</p>`:""}`;
+}).catch(()=>{document.getElementById("list").innerHTML='<div class="err">Չհաջողվեց բեռնել ցանկը։ Փորձեք նորից։</div>'});
+</script>
+</body>
+</html>

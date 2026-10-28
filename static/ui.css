@@ -1,0 +1,125 @@
+/* AI Auto Service — ընդհանուր դիզայն (բաց ֆոն, սպիտակ քարտեր, կանաչ շեշտ). Աղբյուրը՝ «AI Auto Service — նոր դիզայն» canvas-ը, «Ոճի ուղեցույց» artboard-ը */
+:root{--bg:#F4F6F5;--surface:#FFFFFF;--line:#E4E8E6;--line2:#EEF1EF;--line3:#DDE2DF;--ink:#16201B;--ink2:#3C4742;--mute:#5B6660;--dim:#8A948F;
+  --acc:#0E7C53;--acc2:#0B6643;--soft:#E3F5EB;--okdot:#1DA462;--star:#D98E04;--starbg:#FFF4E0;--warnink:#8A5A00;--bad:#B42318;--badbg:#FEF3F2;--empty:#C9D1CC;
+  --sh1:0 1px 2px rgba(16,24,40,.04);--sh2:0 8px 24px rgba(16,24,40,.06);--sh3:0 24px 64px rgba(16,24,40,.24);
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;--font:Inter,"Noto Sans Armenian",system-ui,-apple-system,"Segoe UI",sans-serif}
+*{box-sizing:border-box}[hidden]{display:none!important}
+html{height:100%}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font:15px/1.55 var(--font);-webkit-font-smoothing:antialiased}
+a{color:var(--acc);text-decoration:none}a:hover{color:var(--acc2)}
+button,input,textarea,select{font:inherit}
+input::placeholder,textarea::placeholder{color:var(--dim)}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* ---- վերնագիր (նույնը բոլոր էջերում) ---- */
+header.top{background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+header.top .wrap{max-width:1160px;margin:0 auto;padding:0 24px;min-height:68px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px;color:var(--ink);min-width:0}.brand:hover{color:var(--ink)}
+.brand .logo{width:38px;height:38px;border-radius:11px;background:var(--acc);display:grid;place-items:center;color:#fff;flex:none}
+.brand .logo svg{width:20px;height:20px}
+.brand .ttl{display:flex;flex-direction:column;gap:1px;min-width:0}
+.brand b{font-size:16px;font-weight:700;letter-spacing:-.01em;white-space:nowrap}
+.brand .sub{font-size:12px;color:var(--mute);white-space:nowrap}
+nav.hr{display:flex;align-items:center;gap:4px;background:var(--bg);padding:4px;border-radius:999px}
+.inst{display:inline-flex;align-items:center;gap:8px;padding:9px 16px;border-radius:999px;font-size:14px;font-weight:500;color:var(--ink2);white-space:nowrap;text-decoration:none;cursor:pointer;border:0;background:transparent;transition:background .15s,color .15s}
+.inst:hover{color:var(--ink);background:rgba(255,255,255,.7)}
+.inst.on{color:var(--acc);background:var(--surface);font-weight:600;box-shadow:0 1px 2px rgba(16,24,40,.08)}
+.inst.on:hover{color:var(--acc)}
+.inst .ico{width:16px;height:16px;flex:none}
+.hbtn{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 16px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:14px;font-weight:500;cursor:pointer;white-space:nowrap}
+.hbtn:hover{background:var(--bg)}
+.hbtn .ico{width:16px;height:16px;flex:none}
+.hspace{width:160px}
+.hr2{display:flex;align-items:center;gap:12px}
+#mode{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:var(--acc2);white-space:nowrap}
+#mode:empty{display:none}
+#mode::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--okdot)}
+
+/* ---- կոճակներ ---- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 18px;border-radius:12px;border:1px solid var(--line3);background:var(--surface);color:var(--ink);font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;text-decoration:none;transition:background .15s,border-color .15s}
+.btn:hover{background:var(--bg);color:var(--ink)}
+.btn.primary{background:var(--acc);border-color:var(--acc);color:#fff}.btn.primary:hover{background:var(--acc2);border-color:var(--acc2);color:#fff}
+.btn.outline{height:40px;padding:0 16px;border-radius:10px;border-color:var(--acc);color:var(--acc)}.btn.outline:hover{background:var(--soft);color:var(--acc)}
+.btn.sm{height:40px;padding:0 16px;border-radius:10px}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--ink2);height:40px;padding:0 12px;border-radius:10px}.btn.ghost:hover{background:var(--bg)}
+.btn:disabled{opacity:.6;cursor:default}
+.btn .ico{width:16px;height:16px;flex:none}
+
+/* ---- պիտակներ ---- */
+.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;background:var(--bg);color:var(--ink2)}
+.chip::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
+.chip.open{background:var(--soft);color:var(--acc2)}.chip.open::before{background:var(--okdot)}
+.chip.closed{background:var(--bg);color:var(--ink2)}.chip.closed::before{background:#A5ADA9}
+.chip.warn{background:var(--starbg);color:var(--warnink)}.chip.warn::before{background:var(--star)}
+.chip.done{background:var(--soft);color:var(--acc2)}.chip.done::before{display:none}
+.chip.done .ico{width:12px;height:12px}
+.chip.plain::before{display:none}
+.fchip{height:40px;padding:0 14px;border-radius:999px;border:1px solid var(--line3);background:var(--surface);color:var(--ink2);font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap}
+.fchip.on{border-color:var(--acc);background:var(--soft);color:var(--acc);font-weight:600}
+
+/* ---- քարտեր, դաշտեր ---- */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--sh1)}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:13px;font-weight:600;color:var(--ink2)}
+.field label span{font-weight:400;color:var(--dim)}
+.in{width:100%;height:46px;padding:0 14px;border-radius:12px;border:1px solid var(--line3);background:var(--surface);outline:0;font-size:15px;color:var(--ink);transition:border-color .15s,box-shadow .15s}
+textarea.in{height:auto;padding:12px 14px;line-height:1.5;resize:vertical}
+select.in{appearance:auto}
+.in:focus{border-color:var(--acc);box-shadow:0 0 0 3px var(--soft)}
+.avatar{display:flex;align-items:center;justify-content:center;border-radius:12px;background:var(--line2);color:var(--ink2);font-weight:700;flex:none;width:44px;height:44px;font-size:16px}
+.avatar.acc{background:var(--soft);color:var(--acc)}
+.star{width:14px;height:14px;fill:var(--star);flex:none}
+.pin{width:13px;height:13px;flex:none}
+
+/* ---- էջ ---- */
+main.page{width:100%;max-width:1160px;margin:0 auto;padding:40px 24px 48px;display:flex;flex-direction:column;gap:24px}
+main.page.narrow{max-width:800px}
+h1.pt{margin:0;font-size:32px;line-height:1.2;font-weight:700;letter-spacing:-.02em}
+.lead{margin:0;font-size:15px;line-height:1.5;color:var(--mute);max-width:640px}
+.ptop{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.ptop>div{display:flex;flex-direction:column;gap:8px}
+.ver{padding:16px 24px;text-align:center;font-size:12px;color:var(--dim)}
+.empty{color:var(--mute);padding:24px 4px;text-align:center;font-size:14px}.empty a{font-weight:600}
+.notice{background:var(--starbg);border:1px solid #F3DDA8;border-radius:14px;padding:12px 16px;font-size:13px;color:var(--warnink)}
+
+/* ---- էջավորում ---- */
+.pg{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.pg button{cursor:pointer;min-width:40px;height:40px;padding:0 12px;border-radius:10px;border:1px solid var(--line3);background:var(--surface);color:var(--ink);font-weight:600}
+.pg button.on{background:var(--acc);color:#fff;border-color:var(--acc)}.pg button:disabled{opacity:.4;cursor:default}
+.pg span{min-width:24px;text-align:center;color:var(--dim);line-height:40px}
+.pg:empty{display:none}
+
+/* ---- հայտի պատուհան ---- */
+dialog{border:0;border-radius:20px;background:var(--surface);color:var(--ink);padding:0;width:min(92vw,520px);box-shadow:var(--sh3)}
+dialog::backdrop{background:rgba(22,32,27,.45);backdrop-filter:blur(3px)}
+dialog .dhead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:24px 24px 0}
+dialog h3{margin:0;font-size:22px;font-weight:700;letter-spacing:-.02em}
+dialog .dsub{margin:6px 0 0;font-size:14px;line-height:1.5;color:var(--mute)}
+dialog .x{flex:none;width:40px;height:40px;border-radius:10px;border:0;background:var(--bg);color:var(--ink2);cursor:pointer;display:grid;place-items:center}
+dialog .x svg{width:18px;height:18px}
+dialog .sum{margin:20px 24px 0;padding:14px 16px;border-radius:14px;background:var(--soft);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+dialog .sum>div:first-child{flex:1 1 240px;min-width:0}
+dialog .sum .lab{display:block;font-size:12px;font-weight:600;color:var(--acc);text-transform:uppercase;letter-spacing:.04em}
+dialog .sum strong{font-size:15px;font-weight:600}
+dialog .sum .pr{display:flex;flex-direction:column;align-items:flex-end;gap:2px}dialog .sum .pr strong{font-size:18px;font-weight:700;letter-spacing:-.01em}dialog .sum .pr span{font-size:12px;color:var(--mute)}
+dialog .sum .pr:empty{display:none}
+dialog .body{display:flex;flex-direction:column;gap:16px;padding:20px 24px 0}
+dialog .fine{margin:0;font-size:12px;line-height:1.5;color:var(--dim)}
+dialog .err{color:var(--bad);font-size:13px}dialog .err:empty{display:none}
+dialog .dlgbtn{display:flex;justify-content:flex-end;gap:10px;padding:20px 24px 24px;margin-top:20px;border-top:1px solid var(--line2)}
+@media(max-width:600px){dialog{width:100vw;max-width:100vw;margin:auto 0 0;border-radius:24px 24px 0 0;max-height:92vh;overflow:auto}dialog .dlgbtn button{flex:1}dialog .dlgbtn .primary{flex:2}}
+
+/* ---- մոբայլ. նավիգացիան ներքևի ներդիրներ է ---- */
+@media(max-width:600px){
+  header.top .wrap{padding:0 16px;min-height:60px;gap:10px;flex-wrap:nowrap}
+  .brand .sub{display:none}.hspace{display:none}#mode{display:none}
+  nav.hr{position:fixed;left:0;right:0;bottom:0;z-index:6;border-radius:0;background:var(--surface);border-top:1px solid var(--line);padding:8px 8px max(8px,env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0}
+  .inst{flex-direction:column;gap:4px;padding:6px 0;border-radius:12px;font-size:10px;min-width:0;background:transparent;box-shadow:none}
+  .inst:hover,.inst.on{background:transparent;box-shadow:none}
+  .inst .ico{width:52px;height:30px;border-radius:999px;padding:6px 0}
+  .inst.on .ico{background:var(--soft)}
+  body{padding-bottom:78px}
+  main.page{padding:20px 16px 32px;gap:18px}
+  h1.pt{font-size:24px}
+  .hbtn{width:40px;padding:0;justify-content:center}.hbtn .lbl{display:none}
+}

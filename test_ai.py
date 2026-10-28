@@ -1,7 +1,8 @@
 """AI ռեժիմի թեստ՝ իրական anthropic SDK, բայց կեղծ սերվեր (իրական բանալի պետք չէ).
 Գործարկում՝ python test_ai.py"""
 import json, os, tempfile
-os.environ["AUTOSERVICE_DB"] = os.path.join(tempfile.mkdtemp(), "t.db")
+import testdb
+os.environ["DATABASE_URL"] = testdb.create()
 os.environ["ANTHROPIC_API_KEY"] = "fake-key"
 
 import anthropic
@@ -42,7 +43,12 @@ text, mode, cards = chat.reply([{"role": "user", "content": "արգելակել�
 assert mode == "ai" and "14,000" in text, (mode, text)
 assert [(x["name"], x["price_amd"]) for x in cards][:1] == [("Speed Service", 14000)] and len(cards) == 3   # քարտերը գալիս են գործիքի արդյունքից
 assert len(calls) == 3
-assert "Կանոններ" in calls[0]["system"] and "Երևանում" in calls[0]["system"]      # system prompt-ը՝ ժամանակով
+sys_text = "".join(b["text"] for b in calls[0]["system"])
+assert "Կանոններ" in sys_text and "Հիմա Երևանում" in sys_text                      # system prompt-ը՝ ժամանակով
+assert "Արգելակային կոլոդկաների" in sys_text and "պագրիշկա" in sys_text           # կատալոգը և խոսակցական բառերը prompt-ում են
+assert calls[0]["system"][0].get("cache_control") == {"type": "ephemeral"}        # կայուն մասը քեշավորվում է
+assert calls[0]["output_config"] == {"effort": "low"} and calls[0]["max_tokens"] >= 4096
+assert all(t.get("strict") for t in calls[0]["tools"])
 assert {t["name"] for t in calls[0]["tools"]} == {"list_services", "garages_for_service", "garage_info"}
 assert calls[0]["messages"] == [{"role": "user", "content": "արգելակելիս ճռռոց է լսվում"}]
 # 2-րդ հարցման մեջ պետք է լինեն AI-ի tool_use և մեր tool_result-ը՝ իրական տվյալներով
@@ -74,6 +80,13 @@ anthropic.Anthropic = lambda: RealClient(api_key="x", max_retries=0, http_client
 assert "Չհաջողվեց" in chat.ai_reply([{"role": "user", "content": "x"}])[0]
 print("Անվերջ հանգույցից պաշտպանությունը աշխատում է ✓")
 
+# 5b. Դատարկ պատասխան (օր.՝ max_tokens թողեց միայն thinking, կամ refusal) -> պարզ ռեժիմի տեքստ, ոչ դատարկ տող
+def empty(request): return msg([{"type": "thinking", "thinking": "", "signature": "x"}], "max_tokens")
+anthropic.Anthropic = lambda: RealClient(api_key="x", max_retries=0, http_client=httpx.Client(transport=httpx.MockTransport(empty)))
+text, cards = chat.ai_reply([{"role": "user", "content": "արգելակ ճռռոց"}])
+assert text and "կոլոդկա" in text.lower() and cards[0]["price_amd"] == 14000, (text, cards)
+print("Դատարկ AI պատասխանի դեպքում fallback-ը աշխատում է ✓")
+
 # 6. Օրական սահման. սահմանը անցնելիս AI-ը չի կանչվում (ծախս չկա), chat-ը շարունակում է աշխատել
 calls.clear()
 anthropic.Anthropic = lambda: RealClient(api_key="x", max_retries=0, http_client=httpx.Client(transport=httpx.MockTransport(handler)))
@@ -86,3 +99,22 @@ for _ in range(4):
 assert [m for m, _ in modes] == ["ai", "ai", "simple", "simple"], modes
 assert modes[2][1] == 0 and modes[3][1] == 0                      # սահմանից հետո API կանչ չկա
 print("AI-ի օրական սահմանը աշխատում է ✓")
+
+# 7. Գարաժների որոնումը՝ նույն AI-ով. տեքստը վերածվում է ծառայությունների, կրկնվող հարցումը՝ հիշողությունից (կանչ չկա)
+calls.clear(); chat.AI_DAILY_LIMIT = 200; chat._ai_usage.update(day=None, n=0); chat._resolve_cache.clear()
+def search_handler(request: httpx.Request):
+    body = json.loads(request.content); calls.append(body)
+    assert "tools" not in body and "Կախոցի ստուգում" in body["system"]                      # կատալոգը prompt-ում է, գործիքներ չկան
+    return msg([{"type": "text", "text": "Հավանաբար կախոցն է։ [5, 99]"}], "end_turn")
+anthropic.Anthropic = lambda: RealClient(api_key="x", max_retries=0, http_client=httpx.Client(transport=httpx.MockTransport(search_handler)))
+assert chat.resolve_services("մեքենան փոսերի վրա թխկթխկում է") == ([5], "ai") and len(calls) == 1   # 99-ը կատալոգում չկա, դեն է նետվում
+assert chat.resolve_services("  Մեքենան փոսերի վրա թխկթխկում Է ") == ([5], "ai") and len(calls) == 1   # նույն հարցումը՝ առանց նոր կանչի
+assert chat.resolve_services("") == ([], "none")
+calls.clear(); chat._resolve_cache.clear()
+def empty_handler(request: httpx.Request):
+    calls.append(json.loads(request.content)); return msg([{"type": "text", "text": "[]"}], "end_turn")
+anthropic.Anthropic = lambda: RealClient(api_key="x", max_retries=0, http_client=httpx.Client(transport=httpx.MockTransport(empty_handler)))
+assert chat.resolve_services("պագրիշկա փոխել") == ([3], "ai") and len(calls) == 1              # AI-ը բաց թողեց, բանալի բառը լրացրեց
+anthropic.Anthropic = lambda: RealClient(api_key="bad", max_retries=0, http_client=httpx.Client(transport=httpx.MockTransport(bad)))
+assert chat.resolve_services("թակոց") == ([5], "simple")                                           # AI-ի սխալի դեպքում՝ բանալի բառերով
+print("AI որոնումը (գարաժների էջ) աշխատում է ✓")

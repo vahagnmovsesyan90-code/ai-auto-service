@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="hy">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Auto Service — Գարաժ</title>
+<meta name="theme-color" content="#FFFFFF">
+<meta name="color-scheme" content="light">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Armenian:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/static/ui.css?v=__APP_VERSION__">
+<link rel="stylesheet" href="/static/leaflet/leaflet.css">
+<script src="/static/leaflet/leaflet.js"></script>
+<style>
+main.page{padding-top:28px}
+#box{display:flex;flex-direction:column;gap:24px}
+.back{display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:500;color:var(--mute);width:fit-content}.back:hover{color:var(--ink)}.back svg{width:16px;height:16px}
+/* ---- վերնամաս ---- */
+.hero{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:28px;display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap;box-shadow:var(--sh1)}
+.hero .who{display:flex;gap:18px;align-items:flex-start;min-width:0}
+.hero .avatar{width:64px;height:64px;border-radius:18px;font-size:24px}
+.hero .tl{display:flex;flex-direction:column;gap:8px;min-width:0}
+.hero .nmrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.hero h1{margin:0;font-size:30px;line-height:1.2;font-weight:700;letter-spacing:-.02em}
+.hero .ad{display:flex;align-items:center;gap:18px;flex-wrap:wrap;font-size:14px;color:var(--mute)}
+.hero .ad span,.hero .ad a{display:flex;align-items:center;gap:6px}.hero .ad a{font-weight:600}
+.hero .ad svg{width:15px;height:15px}
+.hero .rt{display:flex;align-items:center;gap:5px}.hero .rt strong{color:var(--ink);font-weight:600}
+.hero .acts{display:flex;gap:10px;flex-wrap:wrap}.hero .acts .btn svg{width:16px;height:16px}
+/* ---- ցանց ---- */
+.grid{display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start}
+.grid>.main{flex:999 1 560px;min-width:0;display:flex;flex-direction:column;gap:24px}.grid>aside{flex:1 1 320px;min-width:0;display:flex;flex-direction:column;gap:24px}
+section.card{border-radius:20px;overflow:hidden}
+section .sh{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:20px 24px;border-bottom:1px solid var(--line2);flex-wrap:wrap}
+section h2{margin:0;font-size:18px;font-weight:600;letter-spacing:-.01em}
+section .sh span{font-size:13px;color:var(--mute)}
+/* ---- ծառայություններ ---- */
+.sr{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:18px 24px;border-bottom:1px solid var(--line2);flex-wrap:wrap}
+.sr:last-of-type{border-bottom:0}
+.sr .sn{flex:1 1 260px;display:flex;flex-direction:column;gap:4px;min-width:0;font-size:15px;font-weight:600}
+.sr .sc{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--mute);font-weight:400}
+.sr .sc .cat{padding:2px 8px;border-radius:6px;background:var(--bg);color:var(--ink2);font-weight:500}
+.sr .sc .sd{display:flex;align-items:center;gap:4px}.sr .sc svg{width:13px;height:13px}
+.sr .right{display:flex;align-items:center;gap:16px}
+.sr .sp{font-size:18px;font-weight:700;letter-spacing:-.01em;white-space:nowrap}
+.none{padding:18px 24px;color:var(--mute);font-size:14px}
+.sent{margin:16px 24px 20px;background:var(--soft);border:1px solid #CDEBDB;border-radius:14px;padding:14px 16px;font-size:14px;color:var(--acc2)}.sent a{font-weight:600}
+/* ---- աջ սյուն՝ քարտեզ, ժամեր ---- */
+aside section{padding:20px 24px;display:flex;flex-direction:column;gap:14px}
+aside h2{font-size:16px}
+.map{height:220px;border-radius:12px;border:1px solid var(--line3);overflow:hidden;background:#E8EDEA;display:grid;place-items:center;color:var(--mute);font-size:13px}
+.pin{width:22px;height:22px;border-radius:50% 50% 50% 0;background:var(--acc);border:2px solid #fff;transform:rotate(-45deg);box-shadow:0 2px 6px rgba(16,24,40,.3)}
+.leaflet-container{font:inherit}.leaflet-control-attribution{background:rgba(255,255,255,.85)!important;color:var(--mute)!important;font-size:10px!important}.leaflet-control-attribution a{color:var(--acc)!important}
+.addr{display:flex;align-items:flex-start;gap:8px;font-size:14px;color:var(--ink2);line-height:1.45}.addr svg{width:16px;height:16px;flex:none;color:var(--mute);margin-top:2px}
+.routes{display:flex;gap:8px;flex-wrap:wrap}
+.routes a{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 12px;border-radius:10px;border:1px solid var(--line3);background:var(--surface);color:var(--ink);font-size:13px;font-weight:600}
+.routes a:hover{background:var(--bg);color:var(--ink)}.routes a svg{width:14px;height:14px;color:var(--acc)}
+.nomap{padding:12px 14px;border-radius:10px;background:var(--bg);font-size:13px;color:var(--mute);line-height:1.5}
+.hrs{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;font-size:14px}
+.hrs li{display:flex;justify-content:space-between;gap:10px;padding:7px 10px;border-radius:8px;color:var(--ink2);white-space:nowrap}
+.hrs li span:last-child{font-variant-numeric:tabular-nums}
+.hrs li.today{background:var(--soft);color:var(--acc);font-weight:600}.hrs li.off{color:var(--dim)}
+/* ---- կարծիքներ՝ ամբողջ լայնությամբ ---- */
+.rsum{display:flex;align-items:center;gap:24px;padding:20px 24px;border-bottom:1px solid var(--line2);flex-wrap:wrap}
+.rsum .big{display:flex;align-items:baseline;gap:6px}.rsum .big strong{font-size:40px;line-height:1;font-weight:700;letter-spacing:-.02em}.rsum .big span{font-size:14px;color:var(--mute)}
+.rsum .col{display:flex;flex-direction:column;gap:6px}
+.stars{display:inline-flex;gap:2px;color:var(--star)}.stars svg{width:16px;height:16px;fill:currentColor}.stars svg.off{color:var(--empty)}
+.rsum .stars svg{width:20px;height:20px}
+.rsum .cnt{font-size:14px;color:var(--mute)}
+.rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr));gap:16px;padding:20px 24px}
+.rev{display:flex;flex-direction:column;gap:10px;padding:16px 18px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+.rev .rs{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.rev .rs strong{font-size:14px;font-weight:600}
+.rev .rs svg{width:14px;height:14px}
+.rev p{margin:0;font-size:14px;line-height:1.55;color:var(--ink2);overflow-wrap:anywhere}
+.rev .meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--mute);margin-top:auto}
+.rev .meta .svc{padding:2px 8px;border-radius:6px;background:var(--bg);color:var(--ink2);font-weight:500;font-size:12px}
+.revempty{display:flex;flex-direction:column;align-items:center;gap:8px;margin:20px 24px;padding:28px 12px;border-radius:14px;background:var(--bg);text-align:center}
+.revempty .stars{color:var(--empty)}.revempty .stars svg{width:18px;height:18px}
+.revempty b{font-size:14px;font-weight:500;color:var(--ink2)}.revempty span{font-size:13px;color:var(--mute)}
+.more{display:flex;justify-content:center;padding:0 24px 20px}.more:empty{display:none}
+.err{color:var(--bad);padding:30px 0;text-align:center}
+@media(max-width:600px){.hero{padding:20px 16px;border-radius:16px}.hero .avatar{width:52px;height:52px;border-radius:14px;font-size:20px}.hero h1{font-size:22px}.hero .acts{width:100%;display:grid;grid-template-columns:1fr 1fr}
+  section .sh,.sr,.none{padding-left:16px;padding-right:16px}.sr .right{width:100%;justify-content:space-between}aside section{padding:16px}
+  .rsum{padding:16px}.rgrid{padding:16px;gap:12px}.revempty{margin:16px}.more{padding:0 16px 16px}.rsum .big strong{font-size:32px}}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="brand" href="/app"><span class="logo" aria-hidden="true"><svg class="" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span><span class="ttl"><b>AI Auto Service</b><span class="sub">Ձեր ավտոսերվիսի օգնականը</span></span></a>
+  <nav class="hr" aria-label="Հիմնական"><a id="homeBtn" class="inst" href="/app"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span class="lbl">Օգնական</span></a><a id="mineBtn" class="inst" href="/my"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6M9 16h6"/></svg><span class="lbl">Իմ հայտերը</span></a><a id="allBtn" class="inst on" href="/catalog"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21V8l9-5 9 5v13"/><path d="M7 21v-8h10v8"/><path d="M7 17h10"/></svg><span class="lbl">Գարաժներ</span></a><a id="appBtn" class="inst" href="/download"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg><span class="lbl">Հավելված</span></a></nav>
+  <span class="hspace"></span>
+</div></header>
+<main class="page">
+  <div id="box"><div class="none">Բեռնվում է…</div></div>
+</main>
+<div class="ver">v__APP_VERSION__</div>
+
+<dialog id="dlg" aria-labelledby="dlgTitle">
+  <div class="dhead"><div><h3 id="dlgTitle">Թողնել հայտ</h3><p class="dsub">Գարաժը կկապվի ձեզ հետ՝ ժամը և մանրամասները ճշտելու համար։</p></div><button type="button" class="x" id="rx" aria-label="Փակել"><svg class="" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+  <div class="sum"><div><span class="lab">Ձեր հայտը</span><strong id="dlgFor"></strong></div><div class="pr" id="dlgPrice"></div></div>
+  <div class="body">
+    <div class="field"><label for="rn">Անուն</label><input class="in" id="rn" maxlength="100" autocomplete="name" placeholder="Ձեր անունը"></div>
+    <div class="field"><label for="rp">Հեռախոս</label><input class="in" id="rp" type="tel" maxlength="25" placeholder="+374 …" autocomplete="tel"></div>
+    <div class="field"><label for="rm">Նշում <span>(ցանկության դեպքում)</span></label><textarea class="in" id="rm" rows="3" maxlength="500" placeholder="Օր.՝ ցանկալի ժամը, մեքենայի մակնիշը"></textarea></div>
+    <div class="err" id="rerr" role="alert"></div>
+    <p class="fine">Ձեր տվյալները կստանա միայն այս գարաժը՝ ձեզ զանգահարելու համար։</p>
+  </div>
+  <div class="dlgbtn"><button type="button" class="btn" id="rcancel">Փակել</button><button type="button" class="btn primary" id="rsend">Ուղարկել հայտը</button></div>
+</dialog>
+<script>
+(function(){ // «Իմ հայտերը (n)»՝ չգնահատվածների քանակը, նույն պահոցից, ինչ օգնականը
+  try{const cut=Date.now()-90*86400000,l=JSON.parse(localStorage.getItem("pending_reviews")||"[]").filter(x=>x.ts>cut),n=l.filter(x=>!x.done).length;
+    document.querySelector("#mineBtn .lbl").textContent="Իմ հայտերը"+(n?` (${n})`:"")}catch(e){}
+})();
+const $$=id=>document.getElementById(id),gid=location.pathname.split("/").filter(Boolean).pop();
+const money=n=>Number(n).toLocaleString("en-US")+" ֏";
+const fmtDate=s=>{const [y,m,d]=s.slice(0,10).split("-");return `${d}.${m}.${y}`};
+function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e}
+let garage=null,target=null;
+const dlg=$$("dlg");
+const ICON={pin:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>',
+  phone:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.6a2 2 0 0 1-.5 2.1L8 9.7a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.8.3 1.7.6 2.6.7a2 2 0 0 1 1.7 2z"/></svg>',
+  clock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  star:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3 6.1 20.6l1.3-6.6L2.5 9.4l6.6-.8z"/></svg>',
+  route:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l19-9-9 19-2-8z"/></svg>',
+  back:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>',
+  ext:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14 21 3"/></svg>'};
+const starsEl=(n,cls="stars")=>{const st=el("span",cls);st.setAttribute("role","img");st.setAttribute("aria-label",`${n} աստղ 5-ից`);st.innerHTML=ICON.star.repeat(5);[...st.children].forEach((c,i)=>{if(i>=Math.round(n))c.classList.add("off")});return st};
+function openCall(s){target=s;$$("rerr").textContent="";$$("dlgFor").textContent=`${garage.name} · ${s.name}`;
+  const pr=$$("dlgPrice");pr.textContent="";pr.append(el("strong",null,money(s.price_amd)),el("span",null,`~${s.duration_min} րոպե`));
+  dlg.showModal();$$("rn").focus()}
+$$("rcancel").onclick=()=>dlg.close();$$("rx").onclick=()=>dlg.close();
+$$("rsend").onclick=async()=>{
+  const body={name:$$("rn").value.trim(),phone:$$("rp").value.trim(),message:$$("rm").value.trim(),garage_id:garage.id,service_id:target.service_id};
+  if(!body.name||body.phone.length<6){$$("rerr").textContent="Լրացրեք անունը և հեռախոսը։";return}
+  $$("rsend").disabled=true;
+  try{
+    const r=await fetch("/requests",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    if(r.status===429){$$("rerr").textContent="Չափազանց շատ հայտեր, փորձեք ավելի ուշ։";return}
+    if(!r.ok){$$("rerr").textContent="Ստուգեք հեռախոսի համարը (թվեր, +, -, փակագծեր)։";return}
+    const d=await r.json();dlg.close();["rn","rp","rm"].forEach(i=>$$(i).value="");
+    if(d.review_token){ // chat-ի «Իմ հայտերը» ցուցակը նույն պահոցից է կարդում. այցից հետո այնտեղ կգնահատի
+      try{const k="pending_reviews",l=JSON.parse(localStorage.getItem(k)||"[]");l.push({tok:d.review_token,garage:garage.name,service:target.name,ts:Date.now(),done:false});localStorage.setItem(k,JSON.stringify(l.slice(-200)))}catch(e){}
+    }
+    const s=el("div","sent");s.append(`✓ Հայտը ուղարկված է «${garage.name}»-ին։ Նրանք կզանգահարեն ձեզ։ Այցից հետո գնահատեք գարաժը `);
+    const a=el("a",null,"«Իմ հայտերը»");a.href="/my";s.append(a," էջում։");
+    $$("sent").replaceChildren(s);$$("sent").scrollIntoView({behavior:"smooth",block:"nearest"});
+  }catch(e){$$("rerr").textContent="Սերվերը չպատասխանեց։"}
+  $$("rsend").disabled=false;
+};
+// ---- Քարտեզ (Leaflet, /static/leaflet, պահուստ՝ cdnjs) ----
+function loadLeafletCDN(){return new Promise(res=>{const l=document.createElement("link");l.rel="stylesheet";l.href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css";document.head.append(l);
+  const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js";s.onload=()=>res(typeof L!=="undefined");s.onerror=()=>res(false);document.head.append(s)})}
+async function initMap(elm,lat,lng){
+  if(typeof L==="undefined"){elm.textContent="Քարտեզը բեռնվում է…";await loadLeafletCDN()}
+  if(typeof L==="undefined"){elm.textContent="Քարտեզը չբեռնվեց։";return}
+  elm.textContent="";elm.style.display="block";
+  const map=L.map(elm,{scrollWheelZoom:false}).setView([lat,lng],16);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap contributors"}).addTo(map);
+  L.marker([lat,lng],{icon:L.divIcon({className:"",html:'<div class="pin"></div>',iconSize:[22,22],iconAnchor:[11,22]})}).addTo(map);
+}
+// ---- Կարծիքներ՝ էջերով ----
+const PAGE=10;let rOffset=0;
+function reviewCard(x){
+  const o=el("article","rev"),rs=el("div","rs");rs.append(starsEl(x.rating),el("strong",null,`${x.rating} / 5`));o.append(rs);
+  if(x.comment)o.append(el("p",null,x.comment));
+  const meta=el("div","meta");meta.append(el("span",null,x.display_name||"Վարորդ"),el("span",null,"·"),el("span",null,fmtDate(x.created_at)));
+  if(x.service)meta.append(el("span","svc",x.service));o.append(meta);return o;
+}
+async function loadReviews(grid,more,total){
+  const r=await fetch(`/garages/${gid}/reviews?limit=${PAGE}&offset=${rOffset}`);const list=r.ok?await r.json():[];
+  list.forEach(x=>grid.append(reviewCard(x)));rOffset+=list.length;more.textContent="";
+  if(list.length===PAGE&&rOffset<total){const b=el("button","btn",`Ցույց տալ ավելին (${total-rOffset})`);b.type="button";b.onclick=()=>{b.disabled=true;loadReviews(grid,more,total)};more.append(b)}
+  return list.length;
+}
+async function init(){
+  let g,svcs;
+  try{
+    const r=await fetch("/garages/"+gid);if(r.status===404){$$("box").replaceChildren(el("div","err","Գարաժը չի գտնվել։"));return}
+    if(!r.ok)throw 0;g=await r.json();
+    svcs=await fetch(`/garages/${gid}/services`).then(x=>x.json());
+  }catch(e){$$("box").replaceChildren(el("div","err","Չհաջողվեց բեռնել։ Փորձեք նորից։"));return}
+  garage=g;document.title=`${g.name} — AI Auto Service`;
+  const box=$$("box");box.textContent="";
+  const DAYS=["Երկ","Երք","Չրք","Հնգ","Ուրբ","Շբթ","Կիր"],FULL=["Երկուշաբթի","Երեքշաբթի","Չորեքշաբթի","Հինգշաբթի","Ուրբաթ","Շաբաթ","Կիրակի"],ti=(new Date().getDay()+6)%7,byDay=new Map(g.hours.map(h=>[h.day,h])),todayH=byDay.get(DAYS[ti]);
+  const hasPt=typeof g.lat==="number"&&typeof g.lng==="number",ll=hasPt?g.lat.toFixed(6)+","+g.lng.toFixed(6):"";
+  // վերադարձ
+  const back=el("a","back");back.href="/catalog";back.innerHTML=ICON.back;back.append("Բոլոր գարաժները");box.append(back);
+  // վերնամաս
+  const hero=el("section","hero"),who=el("div","who"),tl=el("div","tl"),nmrow=el("div","nmrow");
+  who.append(el("span","avatar acc",(g.name||"?").trim().charAt(0).toUpperCase()),tl);
+  nmrow.append(el("h1",null,g.name),el("span","chip "+(g.open_now?"open":"closed"),g.open_now?"Բաց է հիմա"+(todayH?` · մինչև ${todayH.close.slice(0,5)}`:""):"Հիմա փակ է"));
+  const ad=el("div","ad"),adr=el("span");adr.innerHTML=ICON.pin;adr.append(g.address);
+  const tel=el("a");tel.href="tel:"+g.phone.replace(/[^+\d]/g,"");tel.innerHTML=ICON.phone;tel.append(g.phone);
+  const rt=el("a","rt");rt.href="#reviews";if(g.rating&&g.rating.count){rt.innerHTML=ICON.star;rt.firstChild.classList.add("star");rt.append(el("strong",null,g.rating.avg.toFixed(1)),`· ${g.rating.count} կարծիք`+(g.rating.count<5?" (քիչ կարծիք)":""))}else{rt.textContent="Դեռ գնահատականներ չկան";rt.style.fontWeight="400"}
+  ad.append(adr,tel,rt);tl.append(nmrow,ad);
+  const acts=el("div","acts"),call=el("a","btn");call.href=tel.href;call.innerHTML=ICON.phone;call.append("Զանգել");
+  acts.append(call);
+  if(hasPt){const rb=el("a","btn");rb.href="#map-card";rb.innerHTML=ICON.route;rb.append("Երթուղի");acts.append(rb)}
+  const req=el("a","btn primary","Թողնել հայտ");req.href="#services";acts.append(req);
+  hero.append(who,acts);box.append(hero);
+  const grid=el("div","grid"),left=el("div","main"),right=el("aside");grid.append(left,right);box.append(grid);
+  // ծառայություններ և գներ
+  const ss=el("section","card");ss.id="services";const sh=el("div","sh");sh.append(el("h2",null,"Ծառայություններ և գներ"),el("span",null,`${svcs.length} ծառայություն`));ss.append(sh);
+  if(!svcs.length)ss.append(el("div","none","Ծառայություններ դեռ նշված չեն։"));
+  svcs.forEach(s=>{const r=el("div","sr"),sn=el("div","sn",s.name),sc=el("div","sc"),sd=el("span","sd");sd.innerHTML=ICON.clock;sd.append(`~${s.duration_min} ր`);
+    sc.append(el("span","cat",s.category),sd);sn.append(sc);
+    const go=el("button","btn outline","Թողնել հայտ");go.type="button";go.onclick=()=>openCall(s);
+    const rg=el("div","right");rg.append(el("strong","sp",money(s.price_amd)),go);r.append(sn,rg);ss.append(r)});
+  const sent=el("div");sent.id="sent";ss.append(sent);left.append(ss);
+  // տեղը քարտեզում և երթուղի
+  const mc=el("section","card");mc.id="map-card";mc.append(el("h2",null,"Տեղը քարտեզում"));
+  const mapEl=el("div","map");if(hasPt)mc.append(mapEl);
+  const addr=el("div","addr");addr.innerHTML=ICON.pin;addr.append(el("span",null,g.address));mc.append(addr);
+  if(hasPt){const routes=el("div","routes");
+    [["Google Maps",`https://www.google.com/maps/dir/?api=1&destination=${ll}&travelmode=driving`],["Yandex Maps",`https://yandex.ru/maps/?rtext=~${ll}&rtt=auto`],["Waze",`https://waze.com/ul?ll=${ll}&navigate=yes`]].forEach(([n,u])=>{const a=el("a");a.href=u;a.target="_blank";a.rel="noopener";a.innerHTML=ICON.route;a.append(n);routes.append(a)});
+    mc.append(routes)}
+  else mc.append(el("div","nomap","Գարաժը դեռ չի նշել իր ճշգրիտ կետը քարտեզում։ Օգտվեք հասցեից կամ զանգահարեք։"));
+  right.append(mc);
+  // աշխատանքային ժամեր
+  const hs=el("section","card");hs.id="hours";hs.append(el("h2",null,"Աշխատանքային ժամեր"));
+  const ul=el("ul","hrs");
+  DAYS.forEach((d,i)=>{const h=byDay.get(d),li=el("li",i===ti?"today":h?"":"off");li.append(el("span",null,FULL[i]),el("span",null,h?`${h.open.slice(0,5)}–${h.close.slice(0,5)}`:"Փակ"));ul.append(li)});
+  hs.append(ul);right.append(hs);
+  // կարծիքներ՝ ամբողջ լայնությամբ, քարտերով, «Ցույց տալ ավելին»
+  const rs=el("section","card");rs.id="reviews";const rsh=el("div","sh");rsh.append(el("h2",null,"Կարծիքներ"),el("span",null,g.rating.count?`${g.rating.count} կարծիք`:"Դեռ չկան"));rs.append(rsh);
+  if(g.rating.count){const sum=el("div","rsum"),big=el("div","big");big.append(el("strong",null,g.rating.avg.toFixed(1)),el("span",null,"/ 5"));
+    const col=el("div","col");col.append(starsEl(g.rating.avg),el("span","cnt",`${g.rating.count} կարծիք վարորդներից`+(g.rating.count<5?" · դեռ քիչ են":"")));sum.append(big,col);rs.append(sum)}
+  const rg=el("div","rgrid"),more=el("div","more");rs.append(rg,more);left.append(rs);   // ծառայությունների տակ, ժամերի կողքին
+  if(hasPt)initMap(mapEl,g.lat,g.lng);
+  const n=await loadReviews(rg,more,g.rating.count);
+  if(!n){rg.remove();const e=el("div","revempty");e.append(starsEl(0,"stars"),el("b",null,"Կարծիքներ դեռ չկան"),el("span",null,"Առաջին կարծիքը կհայտնվի ծառայությունից հետո"));rs.insertBefore(e,more)}
+}
+init();
+</script>
+</body>
+</html>

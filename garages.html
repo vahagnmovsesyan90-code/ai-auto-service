@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="hy">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Auto Service — Գարաժներ</title>
+<meta name="theme-color" content="#FFFFFF">
+<meta name="color-scheme" content="light">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Armenian:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/static/ui.css?v=__APP_VERSION__">
+<style>
+.search{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.search .box{flex:1 1 360px;min-width:0;display:flex;align-items:center;gap:10px;height:48px;padding:0 16px;border-radius:12px;background:var(--surface);border:1px solid var(--line3);transition:border-color .15s,box-shadow .15s}
+.search .box:focus-within{border-color:var(--acc);box-shadow:0 0 0 3px var(--soft)}
+.search .box svg{width:18px;height:18px;color:var(--mute);flex:none}
+.search input{flex:1;min-width:0;border:0;outline:0;background:transparent;font-size:15px;color:var(--ink)}
+.meta{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:13px;color:var(--mute)}
+.hit{font-size:13px;color:var(--acc);font-weight:500;margin-top:-16px}.hit:empty{display:none}
+.list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr));gap:16px}
+.g{display:flex;flex-direction:column;gap:14px;padding:20px;background:var(--surface);border:1px solid var(--line);border-radius:16px;color:var(--ink);box-shadow:var(--sh1);transition:border-color .15s,box-shadow .15s}
+.g:hover{color:var(--ink);border-color:var(--line3);box-shadow:var(--sh2)}
+.g .top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.g .who{display:flex;align-items:center;gap:12px;min-width:0}
+.g .tl{display:flex;flex-direction:column;gap:3px;min-width:0}
+.g .nm{font-size:16px;font-weight:600}.g .ad{font-size:13px;color:var(--mute)}
+.g .rt{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--mute)}.g .rt strong{color:var(--ink);font-weight:600}
+.g .bot{display:flex;justify-content:space-between;align-items:center;gap:8px;padding-top:12px;border-top:1px solid var(--line2);font-size:13px}
+.g .bot .sv{color:var(--mute)}.g .bot .go{display:flex;align-items:center;gap:4px;color:var(--acc);font-weight:600}.g .bot .go svg{width:14px;height:14px}
+.list .empty{grid-column:1/-1}
+@media(max-width:600px){.search .box{height:46px}.g{padding:16px}}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="brand" href="/app"><span class="logo" aria-hidden="true"><svg class="" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span><span class="ttl"><b>AI Auto Service</b><span class="sub">Ձեր ավտոսերվիսի օգնականը</span></span></a>
+  <nav class="hr" aria-label="Հիմնական"><a id="homeBtn" class="inst" href="/app"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span class="lbl">Օգնական</span></a><a id="mineBtn" class="inst" href="/my"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6M9 16h6"/></svg><span class="lbl">Իմ հայտերը</span></a><a id="allBtn" class="inst on" href="/catalog"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21V8l9-5 9 5v13"/><path d="M7 21v-8h10v8"/><path d="M7 17h10"/></svg><span class="lbl">Գարաժներ</span></a><a id="appBtn" class="inst" href="/download"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg><span class="lbl">Հավելված</span></a></nav>
+  <span class="hspace"></span>
+</div></header>
+<main class="page">
+  <div class="ptop"><div><h1 class="pt">Գարաժներ</h1><p class="lead">Բոլոր ընկերությունները։ Բացեք գարաժը՝ ծառայությունները, գները, ժամերը և կարծիքները տեսնելու համար։</p></div></div>
+  <div class="search"><div class="box"><svg class="" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><label class="sr-only" for="q">Որոնել</label><input id="q" type="search" placeholder="Նկարագրեք խնդիրը կամ ծառայությունը, օր.՝ փոսերի վրա թակոց է լսվում" autocomplete="off"></div></div>
+  <div class="meta"><span id="cnt"></span><span id="sortby">Ըստ՝ անվան</span></div>
+  <div class="hit" id="hit"></div>
+  <div class="list" id="list"></div>
+  <nav class="pg" id="pg" aria-label="Էջեր"></nav>
+</main>
+<div class="ver">v__APP_VERSION__</div>
+<script>
+(function(){ // «Իմ հայտերը (n)»՝ չգնահատվածների քանակը, նույն պահոցից, ինչ օգնականը
+  try{const cut=Date.now()-90*86400000,l=JSON.parse(localStorage.getItem("pending_reviews")||"[]").filter(x=>x.ts>cut),n=l.filter(x=>!x.done).length;
+    document.querySelector("#mineBtn .lbl").textContent="Իմ հայտերը"+(n?` (${n})`:"")}catch(e){}
+})();
+const $$=id=>document.getElementById(id),params=new URLSearchParams(location.search);
+const PER=Math.max(1,Math.min(50,+params.get("per_page")||20));   // էջում 20 գարաժ. per_page-ը՝ թեստերի համար
+let page=Math.max(1,+params.get("page")||1),q=params.get("q")||"",seq=0;
+function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e}
+const STAR='<svg class="star" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3 6.1 20.6l1.3-6.6L2.5 9.4l6.6-.8z"/></svg>',ARROW='<svg class="" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7"/></svg>';   // հաստատուն պատկերակներ
+function card(g){
+  const a=el("a","g");a.href="/catalog/"+g.id;
+  const top=el("div","top"),who=el("div","who"),tl=el("div","tl");
+  const av=el("span","avatar"+(g.rating&&g.rating.count?" acc":""),(g.name||"?").trim().charAt(0).toUpperCase());
+  tl.append(el("div","nm",g.name),el("div","ad",g.address));who.append(av,tl);
+  top.append(who,el("span","chip "+(g.open_now?"open":"closed"),g.open_now?"Բաց է հիմա":"Հիմա փակ է"));
+  const rt=el("div","rt");
+  if(g.rating&&g.rating.count){rt.innerHTML=STAR;rt.append(el("strong",null,g.rating.avg.toFixed(1)),`· ${g.rating.count} կարծիք`)}else rt.textContent="Դեռ գնահատականներ չկան";
+  const bot=el("div","bot"),go=el("span","go","Բացել");go.insertAdjacentHTML("beforeend",ARROW);
+  bot.append(el("span","sv",g.services_count?`${g.services_count} ծառայություն`:"Ծառայություններ դեռ նշված չեն"),go);
+  a.append(top,rt,bot);
+  return a;
+}
+function pager(box,page,pages,go){ // էջերի համարներ. 1 … 4 5 6 … N
+  box.textContent="";if(pages<=1)return;
+  const b=(t,p,on,dis)=>{const x=el("button",on?"on":"",t);x.type="button";x.disabled=!!dis;if(on)x.setAttribute("aria-current","page");x.onclick=()=>go(p);box.append(x)};
+  b("‹",page-1,false,page<=1);
+  const set=new Set([1,pages,page-1,page,page+1].filter(p=>p>=1&&p<=pages));let last=0;
+  [...set].sort((a,c)=>a-c).forEach(p=>{if(p-last>1)box.append(el("span",null,"…"));b(String(p),p,p===page);last=p});
+  b("›",page+1,false,page>=pages);
+}
+function syncUrl(){const u=new URLSearchParams();if(q)u.set("q",q);if(page>1)u.set("page",page);if(PER!==20)u.set("per_page",PER);history.replaceState(null,"",location.pathname+(u.toString()?"?"+u:""))}
+async function load(){ // սերվերը տալիս է միայն պահանջված էջը (հազարավոր գարաժների համար)
+  const my=++seq;$$("list").textContent="";$$("cnt").textContent="Բեռնվում է…";$$("hit").textContent="";$$("pg").textContent="";syncUrl();
+  try{
+    const r=await fetch(`/api/catalog?q=${encodeURIComponent(q)}&page=${page}&per_page=${PER}`);
+    if(!r.ok)throw 0;const d=await r.json();if(my!==seq)return;   // հին պատասխան՝ որոնումը փոխվել է
+    const pages=Math.max(1,Math.ceil(d.total/PER));
+    if(page>pages){page=pages;return load()}                       // էջը այլևս չկա (օր.՝ որոնումից հետո)
+    d.items.forEach(g=>$$("list").append(card(g)));
+    $$("cnt").textContent=d.total?`${d.total} գարաժ${q?` «${q}» որոնմամբ`:""}${pages>1?` · էջ ${page}/${pages}`:""}`:"";
+    $$("hit").textContent=d.matched_services&&d.matched_services.length?"Հասկացա՝ "+d.matched_services.join(", "):"";   // AI-ի մեկնաբանությունը
+    if(!d.total)$$("list").append(el("div","empty",q?"Ոչինչ չգտնվեց։ Փորձեք այլ բառ։":"Գարաժներ դեռ չկան։"));
+    pager($$("pg"),page,pages,p=>{page=p;load();window.scrollTo({top:0,behavior:"smooth"})});
+  }catch(e){if(my===seq){$$("cnt").textContent="Չհաջողվեց բեռնել։ Փորձեք նորից։"}}
+}
+let t;$$("q").oninput=()=>{clearTimeout(t);t=setTimeout(()=>{q=$$("q").value.trim();page=1;load()},600)};   // 600ms. ամեն տառի համար AI չկանչենք
+$$("q").value=q;load();
+</script>
+</body>
+</html>

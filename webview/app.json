@@ -1,0 +1,38 @@
+{
+  "name": "AI Auto Service",
+  "url": "https://aiauto.am",
+  "devUrl": "http://10.0.2.2:8000",
+  "hosts": [
+    "aiauto.am",
+    "www.aiauto.am"
+  ],
+  "devHosts": [
+    "10.0.2.2",
+    "localhost",
+    "127.0.0.1"
+  ],
+  "userAgentSuffix": "AiAutoApp/1.0",
+  "android": {
+    "applicationId": "am.aiauto.app",
+    "versionCode": 1,
+    "versionName": "1.0"
+  },
+  "ios": {
+    "bundleId": "am.aiauto.app",
+    "version": "1.0",
+    "build": "1"
+  },
+  "desktop": {
+    "appId": "am.aiauto.desktop",
+    "version": "1.0.0",
+    "maintainer": "AI Auto Service <support@aiauto.am>",
+    "summary": {
+      "hy": "Ավտոսերվիսի օգնական՝ գարաժներ, գներ, հայտեր",
+      "en": "Car service assistant: garages, prices and requests"
+    },
+    "description": {
+      "hy": "AI Auto Service-ը վարորդի ավտոսերվիսի օգնականն է։ Նկարագրեք մեքենայի խնդիրը, օգնականը գտնում է ծառայությունն ու գարաժները՝ գներով և ժամերով, իսկ դուք թողնում եք հայտ։ Գարաժի սեփականատերը նույն հավելվածով տեսնում է իր հայտերը, գներն ու ժամերը։ Հավելվածը բացում է նույն AI Auto Service-ը իր պատուհանում՝ առանց բրաուզերի։",
+      "en": "AI Auto Service is a driver's car service assistant. Describe the problem, the assistant finds the service and garages with prices and hours, and you leave a request. A garage owner manages their requests, prices and hours in the same app. The app opens the same AI Auto Service in its own window, without a browser."
+    }
+  }
+}

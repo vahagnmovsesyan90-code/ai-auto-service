@@ -1,0 +1,38 @@
+# Ամբողջ պրոյեկտը Docker-ով՝ PostgreSQL + հավելված։
+#   docker compose up -d --build          # dev. կոդը mount է արված, փոփոխությունները կիրառվում են անմիջապես (override-ը)
+#   docker compose -f docker-compose.yml up -d --build   # production. միայն image-ը, առանց mount-ի և reload-ի
+#   docker compose run --rm app python test_api.py       # թեստեր կոնտեյների մեջ (ժամանակավոր բազայով)
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: autoservice
+      POSTGRES_PASSWORD: autoservice
+      POSTGRES_DB: autoservice
+    ports:
+      - "127.0.0.1:5433:5432"     # host-ից մուտք (psql, host-ում աշխատող թեստեր)
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U autoservice -d autoservice"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env                # ADMIN_PASSWORD, SECRET_KEY, ANTHROPIC_API_KEY, SEED_SAMPLE ...
+    environment:
+      DATABASE_URL: postgresql://autoservice:autoservice@db:5432/autoservice   # .env-ի արժեքից գերակա է
+    ports:
+      - "127.0.0.1:8000:8000"     # միայն այս մեքենայից. ցանցին բացելու համար՝ "8000:8000"
+    volumes:
+      - ./downloads:/app/downloads   # հավելվածի փաթեթները (/download էջ). publish.sh-ը այստեղ է դնում
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

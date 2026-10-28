@@ -48,6 +48,7 @@ class ServiceIn(BaseModel):
     name: str = Field(min_length=1, max_length=150)
     category: str = Field(default="Այլ", max_length=60)
     keywords: list[str] = Field(default_factory=list, max_length=30)
+    sample_question: str = Field(default="", max_length=150)   # chat-ի «հաճախ հարցվող» chip-ի տեքստը
 
 
 class OfferIn(BaseModel):
@@ -117,7 +118,7 @@ def data(user: Identity = Depends(require_user)):
     return {
         "role": user.role,
         "services": [{"id": s.id, "name": s.name, "category": s.category,
-                      "keywords": list(s.keywords)} for s in q.all_services()],
+                      "keywords": list(s.keywords), "sample_question": s.sample_question} for s in q.all_services()],
         "garages": [{
             "id": g.id, "name": g.name, "address": g.address, "phone": g.phone, "lat": g.lat, "lng": g.lng,
             "login": accounts[g.id]["login"], "telegram_linked": accounts[g.id]["telegram_linked"],
@@ -275,13 +276,13 @@ def admin_unlink(user: Identity = Depends(require_user)):
 @router.post("/services", status_code=201)
 def create_service(body: ServiceIn, user: Identity = Depends(require_user)):
     need_admin(user)
-    return {"id": q.create_service(body.name, body.category, body.keywords)}
+    return {"id": q.create_service(body.name, body.category, body.keywords, body.sample_question)}
 
 
 @router.put("/services/{service_id}")
 def update_service(service_id: int, body: ServiceIn, user: Identity = Depends(require_user)):
     need_admin(user)
-    found(q.update_service(service_id, body.name, body.category, body.keywords), "Ծառայությունը")
+    found(q.update_service(service_id, body.name, body.category, body.keywords, body.sample_question), "Ծառայությունը")
     return {"ok": True}
 
 

@@ -1,10 +1,11 @@
 """Telegram-ի կապի և ծանուցումների դիտարկչային թեստ (կեղծ Telegram API-ով, իրական բոտ պետք չէ).
 Գործարկում՝ python test_telegram_browser.py"""
 import os, re, tempfile, threading, time, urllib.request
+import testdb
 
 PORT = 8771
 BASE = f"http://127.0.0.1:{PORT}"
-os.environ.update(ADMIN_PASSWORD="pw", AUTOSERVICE_DB=os.path.join(tempfile.mkdtemp(), "tg.db"),
+os.environ.update(ADMIN_PASSWORD="pw", DATABASE_URL=testdb.create(),
                   TELEGRAM_BOT_TOKEN="123:fake")
 os.environ.pop("ANTHROPIC_API_KEY", None)
 
@@ -60,7 +61,7 @@ with sync_playwright() as p:
     print("Ադմինի Telegram-ի կապ (հղում -> Start -> էջը թարմանում) ✓")
 
     # --- գարաժի մուտքը և նրա Telegram-ը ---
-    a.click("[data-t=garages]"); a.get_by_role("button", name="Garage Kentron").click()
+    a.click("[data-t=garages]"); a.locator("tr[data-gid]", has_text="Garage Kentron").locator("[data-g]").first.click()
     a.fill("#al", "kentron"); a.fill("#ap", "kentron-pass-1"); a.click("#saveAcc")
     expect(a.locator("#main")).to_contain_text("Մուտքանուն՝ kentron")
     a.click("[data-tglink=garage]")

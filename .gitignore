@@ -1,3 +1,10 @@
 __pycache__/
 *.db
 .env
+.venv/
+shots/
+.idea/
+
+# Հավելվածի պատրաստի փաթեթները (webview/bin/publish.sh). մեծ են, git-ում չեն
+downloads/*
+!downloads/.gitkeep

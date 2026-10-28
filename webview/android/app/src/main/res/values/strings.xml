@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">AI Auto</string>
+    <string name="perm_denied">Թույլտվությունը մերժված է։ Միացրեք այն կարգավորումներում։</string>
+    <string name="saved_to_downloads">Պահվեց Downloads-ում՝ %1$s</string>
+    <string name="download_failed">Չհաջողվեց պահել ֆայլը</string>
+    <string name="channel_calls">Հայտեր և ծանուցումներ</string>
+</resources>

@@ -1,7 +1,8 @@
 """Գործարկում՝ python test_api.py"""
 import os, tempfile
+import testdb
 os.environ["ADMIN_PASSWORD"] = "test-pass"
-os.environ["AUTOSERVICE_DB"] = os.path.join(tempfile.mkdtemp(), "test.db")
+os.environ["DATABASE_URL"] = testdb.create()          # ժամանակավոր Postgres բազա, ավարտին ջնջվում է
 
 from fastapi.testclient import TestClient
 
@@ -17,11 +18,32 @@ prices = [o["price"] for o in offers]
 assert prices == sorted(prices) and prices[0] == 14000, prices
 
 assert c.get("/garages").json().__len__() == 3
-assert c.get("/garages/2").json()["name"] == "Garage Kentron"
-assert c.get("/garages/99").status_code == 404
-assert c.get("/services/99/garages").status_code == 404
-assert c.get("/garages/open").status_code == 200
-print("Բոլոր թեստերը անցան ✓")
+
+# գարաժների էջ՝ սերվերի կողմից որոնում և էջավորում (հազարավոր գարաժների համար)
+cat = c.get("/api/catalog").json()
+assert cat["total"] == 3 and cat["page"] == 1 and [g["name"] for g in cat["items"]] == sorted(g["name"] for g in cat["items"])
+kentron = next(g for g in cat["items"] if g["name"] == "Garage Kentron")
+assert {"id", "open_now", "rating", "address", "phone", "services_count"} <= set(kentron) and kentron["services_count"] >= 2
+p1 = c.get("/api/catalog", params={"per_page": 2}).json(); p2 = c.get("/api/catalog", params={"per_page": 2, "page": 2}).json()
+assert len(p1["items"]) == 2 and len(p2["items"]) == 1 and p1["total"] == p2["total"] == 3            # էջավորում
+assert c.get("/api/catalog", params={"per_page": 999}).json()["per_page"] == 50                        # առավելագույնը 50
+assert [g["name"] for g in c.get("/api/catalog", params={"q": "speed"}).json()["items"]] == ["Speed Service"]   # անունով
+assert c.get("/api/catalog", params={"q": "Տերյան"}).json()["items"][0]["name"] == "Garage Kentron"             # հասցեով
+by_service = c.get("/api/catalog", params={"q": "Կախոցի ստուգում"}).json()
+assert "Garage Kentron" in {g["name"] for g in by_service["items"]} and "AutoPro Երևան" not in {g["name"] for g in by_service["items"]}   # ծառայությամբ
+assert by_service["matched_services"] == ["Կախոցի ստուգում"] and by_service["mode"] == "simple"      # առանց բանալու՝ բանալի բառերով
+for syn in ("ակ", "անիվ", "պագրիշկա", "pagrishka", "Ակերը թրթռում են"):                               # հոմանիշները նույն արդյունքն են տալիս
+    assert c.get("/api/catalog", params={"q": syn}).json()["matched_services"] == ["Անվադողերի փոխարինում և հավասարակշռում"], syn
+assert "Անվադողերի փոխարինում և հավասարակշռում" not in c.get("/api/catalog", params={"q": "արգելակ"}).json()["matched_services"]   # «ակ»-ը «արգելակ»-ի մեջ չի հաշվվում
+sem = c.get("/api/catalog", params={"q": "փոսերի վրա թակոց է լսվում"}).json()                           # նկարագրությամբ, ոչ թե անունով
+assert sem["matched_services"] == ["Կախոցի ստուգում"] and "AutoPro Երևան" not in {g["name"] for g in sem["items"]} and sem["total"] == 2
+assert c.get("/api/catalog", params={"q": "zzz"}).json() == {"items": [], "total": 0, "page": 1, "per_page": 20, "matched_services": [], "mode": "simple"}
+svcs = c.get(f"/garages/{kentron['id']}/services").json()
+assert any(s["name"] == "Կախոցի ստուգում" for s in svcs) and all({"service_id", "name", "category", "price_amd", "duration_min"} <= set(s) for s in svcs)
+assert [(s["category"], s["name"]) for s in svcs] == sorted((s["category"], s["name"]) for s in svcs)
+assert c.get("/garages/999/services").status_code == 404
+assert c.get("/catalog").status_code == 200 and c.get(f"/catalog/{kentron['id']}").status_code == 200 and c.get("/catalog/999").status_code == 404
+assert "open_now" in c.get(f"/garages/{kentron['id']}").json()
 
 # ---- Փուլ 3/4. chat (առանց բանալու՝ պարզ ռեժիմ) ----
 import os, json
@@ -41,12 +63,12 @@ print("Chat-ի թեստերն անցան ✓")
 
 # ---- Փուլ 5. բազա ----
 import db, queries
-assert db.DB_PATH.exists()
+assert db.DATABASE_URL == os.environ["DATABASE_URL"]
 assert queries.set_price(3, 2, 13000) is True
 assert queries.set_price(3, 6, 1000) is False          # Speed Service-ը օդորակիչ չունի
 assert c.get("/services/2/garages").json()[0]["price"] == 13000   # API-ն տեսնում է փոփոխությունը
 assert c.post("/chat", json={"messages": [{"role": "user", "content": "արգելակ ճռռոց"}]}).json()["cards"][0]["price_amd"] == 13000
-db._ready.clear()                                        # նոր կապ՝ տվյալները մնացել են ֆայլում
+db._ready.clear()                                        # նոր կապ՝ տվյալները մնացել են բազայում
 assert queries.get_garage(3).services[2].price == 13000
 db.reset()
 assert queries.get_garage(3).services[2].price == 14000  # reset-ը վերադարձնում է սկզբնականը
@@ -124,7 +146,7 @@ assert c.put("/admin/garages/3/account", headers=H, json={"login": "ADMIN", "pas
 assert c.put("/admin/garages/3/account", headers=H, json={"login": "a b", "password": "long-enough-1"}).status_code == 422     # անթույլատրելի նիշ
 assert c.put("/admin/garages/999/account", headers=H, json={"login": "nobody", "password": "long-enough-1"}).status_code == 404
 with db.connect() as cn:
-    stored = cn.execute("SELECT password_hash FROM garages WHERE id=2").fetchone()[0]
+    stored = cn.execute("SELECT password_hash FROM garages WHERE id=2").fetchone()["password_hash"]
 assert stored.startswith("pbkdf2$") and "kentron-pass" not in stored                                                          # գաղտնաբառը հեշավորված է
 
 # մուտք
@@ -309,10 +331,10 @@ assert c.patch(f"/admin/requests/{rq}", headers=HB, json={"status": "visited"}).
 # --- հաշվետվություն. վերահսկվող տվյալներ՝ ուղիղ բազայում ---
 def ins(garage, status, created, first=None, reason=None):
     with db.connect() as cn:
-        cn.execute("INSERT INTO requests(name,phone,garage_id,status,created_at,first_response_at,decline_reason) VALUES ('R','+374 91 000000',?,?,?,?,?)",
+        cn.execute("INSERT INTO requests(name,phone,garage_id,status,created_at,first_response_at,decline_reason) VALUES ('R','+374 91 000000',%s,%s,%s,%s,%s)",
                    (garage, status, created, first, reason))
 with db.connect() as cn:
-    cn.execute("DELETE FROM requests WHERE garage_id IN (?,?)", (gA, gB))
+    cn.execute("DELETE FROM requests WHERE garage_id IN (%s,%s)", (gA, gB))
 # Հոկտեմբեր (Երևան UTC+4). 2030-02-28 20:30 UTC = 2030-03-01 00:30 Երևան -> հոկտեմբեր
 ins(gA, "visited",  "2030-03-05 08:00:00", "2030-03-05 08:10:00")           # արձագանք 10 ր
 ins(gA, "booked",   "2030-03-06 08:00:00", "2030-03-06 08:30:00")           # 30 ր
@@ -379,13 +401,12 @@ def review(token, **kw): return c.post(f"/reviews/{token}", json=kw)
 
 # հայտի պատասխանում վարորդը ստանում է գնահատման հղում (միայն եթե գարաժ կա)
 r = c.post("/requests", json={"name": "Գ", "phone": "+374 91 100001", "garage_id": R1}).json()
-assert r["review_url"].startswith("/review/") and r["garage"] == "Rate One"
-assert c.post("/requests", json={"name": "Գ", "phone": "+374 91 100002"}).json()["review_url"] is None
-tok = r["review_url"].split("/")[-1]
-info = c.get(f"/review-info/{tok}").json()
-assert info["garage"] == "Rate One" and info["already_reviewed"] is False
-assert c.get("/review-info/nonexistent-token").status_code == 404
-assert c.get("/review/anything").status_code == 200 and "html" in c.get("/review/anything").headers["content-type"]
+assert len(r["review_token"]) > 20 and r["garage"] == "Rate One"
+assert c.post("/requests", json={"name": "Գ", "phone": "+374 91 100002"}).json()["review_token"] is None
+tok = r["review_token"]
+chk = c.post("/my-requests/check", json={"tokens": [tok]}).json()["requests"]
+assert chk[0]["garage"] == "Rate One" and chk[0]["already_reviewed"] is False and chk[0]["rating"] is None
+assert c.get("/review/anything").status_code == 404                              # առանձին գնահատման էջ այլևս չկա
 
 # վալիդացիա
 assert review(tok, went=True).status_code == 422                                # «գնացի»՝ առանց աստղերի
@@ -400,21 +421,30 @@ assert review(nog_tok, went=True, rating=5).status_code == 400                  
 # մեկ հայտ = մեկ կարծիք
 assert review(tok, went=True, rating=5, comment="Շատ լավ սպասարկում", display_name="Արամ").status_code == 201
 assert review(tok, went=True, rating=1).status_code == 409
-assert c.get(f"/review-info/{tok}").json()["already_reviewed"] is True
+chk = c.post("/my-requests/check", json={"tokens": [tok]}).json()["requests"][0]
+assert chk["already_reviewed"] is True and chk["rating"] == 5 and chk["went"] is True   # ցուցակը ցույց է տալիս տրված աստղերը
+assert chk["comment"] == "Շատ լավ սպասարկում" and chk["display_name"] == "Արամ"          # և գրած կարծիքը
 
 # կրկնակի կարծիք նույն համարից նույն գարաժին (հեռախոսի տարբեր գրելաձևով)
 _, tok_dup = mk(R1, "091100001")
-assert review(tok_dup, went=True, rating=5).status_code == 409
+r_dup = review(tok_dup, went=True, rating=4, comment="Երկրորդ այցը՝ նույնպես լավ", display_name="Արամ Ա.")
+assert r_dup.status_code == 200 and r_dup.json() == {"ok": True, "updated": True}        # կրկնակի չի ստեղծվում. նախորդը թարմացվում է
+chk = c.post("/my-requests/check", json={"tokens": [tok_dup, tok]}).json()["requests"]
+assert len(chk) == 2 and all(x["already_reviewed"] and x["rating"] == 4 and x["went"] and x["comment"] == "Երկրորդ այցը՝ նույնպես լավ"
+                             and x["display_name"] == "Արամ Ա." for x in chk)           # երկու հայտն էլ ցույց են տալիս թարմացվածը
+assert c.get(f"/garages/{R1}").json()["rating"]["count"] == 1 and c.get(f"/garages/{R1}").json()["rating"]["avg"] == 4.0   # գարաժը դեռ մեկ կարծիք ունի
 assert review(tok_dup, went=False, reason="far").status_code == 201
+chk = c.post("/my-requests/check", json={"tokens": [tok_dup]}).json()["requests"][0]
+assert chk["already_reviewed"] is True and chk["went"] is False and chk["rating"] is None
 
 
 # վարկանիշ. միջին, կարծիքների թիվ, «չգնացի»-ն չի հաշվվում
 g = c.get(f"/garages/{R1}").json()
-assert g["rating"] == {"avg": 5.0, "count": 1, "score": g["rating"]["score"]} and g["rating"]["score"] < 5.0   # Bayes-ը 1 կարծիքը մոտեցնում է միջինին
+assert g["rating"]["avg"] == 4.0 and g["rating"]["count"] == 1 and g["rating"]["score"] is not None   # թարմացված 4-ը, մեկ կարծիք
 for i, st in enumerate((4, 4, 3)):
     _, t = mk(R1, f"+374 91 2000{i:02d}"); assert review(t, went=True, rating=st).status_code == 201
 g = c.get(f"/garages/{R1}").json()["rating"]
-assert g["count"] == 4 and g["avg"] == 4.0                                      # (5+4+4+3)/4
+assert g["count"] == 4 and g["avg"] == 3.8                                      # (4+4+4+3)/4 = 3.75 -> 3.8
 # 20 կարծիք 4.7 միջինով՝ Rate Two
 for i in range(20):
     _, t = mk(R2, f"+374 91 3000{i:02d}"); review(t, went=True, rating=5 if i % 3 else 4)
@@ -433,7 +463,7 @@ assert c.get(f"/garages/{R4}").json()["rating"] == {"avg": None, "count": 0, "sc
 
 # հրապարակային կարծիքներ. առանց հեռախոսի, միայն «գնացի»
 pub = c.get(f"/garages/{R1}/reviews").json()
-assert len(pub) == 4 and pub[-1]["comment"] == "Շատ լավ սպասարկում" and pub[-1]["display_name"] == "Արամ"
+assert len(pub) == 4 and pub[-1]["comment"] == "Երկրորդ այցը՝ նույնպես լավ" and pub[-1]["display_name"] == "Արամ Ա."   # թարմացված տեքստը
 assert set(pub[0]) == {"rating", "comment", "display_name", "created_at", "service"}
 assert "091100001" not in str(pub) and "91 100001" not in str(pub)
 assert c.get("/garages/99999/reviews").status_code == 404
@@ -454,7 +484,7 @@ assert all(r["garage_id"] == R2 for r in r2v["reviews"])
 assert c.get("/admin/reviews").status_code == 401
 
 # մոդերացիա. միայն ադմինը, պատճառով
-rv_id = next(r["id"] for r in ar["reviews"] if r["garage_id"] == R1 and r["comment"] == "Շատ լավ սպասարկում")
+rv_id = next(r["id"] for r in ar["reviews"] if r["garage_id"] == R1 and r["comment"] == "Երկրորդ այցը՝ նույնպես լավ")
 assert c.patch(f"/admin/reviews/{rv_id}", headers=H1, json={"hidden": True, "reason": "կեղծ"}).status_code == 403     # գարաժը չի կարող թաքցնել
 assert c.patch(f"/admin/reviews/{rv_id}", headers=H, json={"hidden": True}).status_code == 422
 assert c.patch("/admin/reviews/99999", headers=H, json={"hidden": True, "reason": "x"}).status_code == 404
@@ -485,45 +515,15 @@ assert c.get("/services/1/garages").json()[0]["garage"]["rating"]["count"] in (0
 
 # rate limit
 apimod.review_limiter.limit = 3; apimod.review_limiter.hits.clear()
-codes = [c.get("/review-info/nonexistent-token").status_code for _ in range(5)]
+codes = [review("nonexistent-token", went=True, rating=5).status_code for _ in range(5)]
 assert codes[:3] == [404, 404, 404] and codes[3:] == [429, 429], codes
 apimod.review_limiter.limit = 1000
 print("Գնահատականների թեստերն անցան ✓")
 
 # =====================================================================
-# Տեղադրվող հավելված (PWA). manifest, պատկերակներ, service worker
-# =====================================================================
-import struct
-for path, start, app_id in (("/manifest-app.webmanifest", "/app", "/app"), ("/manifest-panel.webmanifest", "/panel", "/panel")):
-    r = c.get(path)
-    assert r.status_code == 200 and r.headers["content-type"].startswith("application/manifest+json")
-    mf = r.json()
-    assert mf["start_url"] == start and mf["id"] == app_id and mf["display"] == "standalone" and mf["scope"] == "/"
-    assert mf["name"] and mf["short_name"] and mf["theme_color"].startswith("#") and mf["lang"] == "hy"
-    sizes = {(i["sizes"], i["purpose"]) for i in mf["icons"]}
-    assert {("192x192", "any"), ("512x512", "any"), ("512x512", "maskable")} <= sizes          # Chrome-ի տեղադրման պայմանները
-assert c.get("/manifest-app.webmanifest").json()["id"] != c.get("/manifest-panel.webmanifest").json()["id"]   # երկու առանձին հավելված
-def png_size(data):
-    assert data[:8] == b"\x89PNG\r\n\x1a\n"
-    return struct.unpack(">II", data[16:24])
-for name, size in (("icon-192.png", 192), ("icon-512.png", 512), ("icon-maskable-512.png", 512), ("apple-touch-icon.png", 180)):
-    r = c.get("/icons/" + name)
-    assert r.status_code == 200 and r.headers["content-type"] == "image/png" and png_size(r.content) == (size, size), name
-assert c.get("/icons/nope.png").status_code == 404 and c.get("/icons/..%2Fapi.py").status_code in (404, 422)   # path traversal չկա
-sw = c.get("/sw.js")
-assert sw.status_code == 200 and "javascript" in sw.headers["content-type"]
-assert sw.headers["cache-control"] == "no-cache" and sw.headers["service-worker-allowed"] == "/"
-assert 'addEventListener("fetch"' in sw.text and 'req.mode !== "navigate"' in sw.text                    # միայն էջերի հարցումներ
-assert "/admin" not in sw.text.replace("OFFLINE", "") and "/chat" not in sw.text and "/requests" not in sw.text   # API-ն երբեք չի քեշավորվում
-assert 'SHELL = ["/app", "/panel"]' in sw.text
-assert 'rel="manifest" href="/manifest-app.webmanifest"' in c.get("/app").text
-assert 'rel="manifest" href="/manifest-panel.webmanifest"' in c.get("/panel").text
-print("PWA-ի թեստերն անցան ✓")
-
-# =====================================================================
 # Էջերը. no-cache և տարբերակի նշում (թարմացումից հետո հին էջը չպետք է մնա քեշում)
 # =====================================================================
-for page_path in ("/app", "/panel", "/review/any-token"):
+for page_path in ("/app", "/panel", "/my", "/catalog", f"/catalog/{c.get('/garages').json()[0]['id']}"):
     r = c.get(page_path)
     assert r.status_code == 200 and r.headers["cache-control"] == "no-cache", page_path
     assert "__APP_VERSION__" not in r.text and f"v{apimod.APP_VERSION}" in r.text, page_path
@@ -542,9 +542,15 @@ by = {x["token"]: x for x in res}
 assert set(by) == {good_tok, rev_tok}, by                                    # կեղծը և առանց գարաժի հայտը չեն վերադառնում
 assert by[good_tok]["garage"] == "Rate One" and by[good_tok]["already_reviewed"] is False
 assert by[rev_tok]["already_reviewed"] is True and by[rev_tok]["garage"] == "Rate Two"
-assert c.post("/my-requests/check", json={"tokens": []}).json() == {"requests": []}
-assert c.post("/my-requests/check", json={"tokens": ["x"] * 21}).status_code == 422   # առավելագույնը 20
-assert c.post("/my-requests/check", json={"tokens": ["a" * 65]}).json() == {"requests": []}
+assert c.post("/my-requests/check", json={"tokens": []}).json() == {"requests": [], "total": 0, "page": 1, "per_page": 20, "all_total": 0, "pending_total": 0, "rated_total": 0, "valid": []}
+assert c.post("/my-requests/check", json={"tokens": ["x"] * 201}).status_code == 422  # առավելագույնը 200
+pg = c.post("/my-requests/check", json={"tokens": [good_tok, rev_tok], "per_page": 1}).json()        # էջավորումը սերվերում
+assert pg["total"] == 2 and pg["page"] == 1 and pg["per_page"] == 1 and len(pg["requests"]) == 1 and len(pg["valid"]) == 2
+assert pg["requests"][0]["token"] == rev_tok and "created_at" in pg["requests"][0]                   # նորը վերևում է
+pg2 = c.post("/my-requests/check", json={"tokens": [good_tok, rev_tok], "per_page": 1, "page": 2}).json()
+assert [x["token"] for x in pg2["requests"]] == [good_tok] and {v["token"]: v["done"] for v in pg2["valid"]} == {good_tok: False, rev_tok: True}
+assert c.post("/my-requests/check", json={"tokens": [good_tok], "per_page": 51}).status_code == 422
+assert c.post("/my-requests/check", json={"tokens": ["a" * 65]}).json()["requests"] == []
 assert "phone" not in str(res) and "name" not in {k for x in res for k in x}           # անձնական տվյալ չի հայտնվում
 apimod.check_limiter.limit = 2; apimod.check_limiter.hits.clear()
 assert [c.post("/my-requests/check", json={"tokens": [good_tok]}).status_code for _ in range(3)] == [200, 200, 429]
@@ -566,7 +572,7 @@ assert "հայերեն տառերով" not in simple("արգելակելիս ճ�
 assert "հայերեն տառերով" not in simple("բլա բլա")["reply"] and "Չհասկացա" in simple("բլա բլա")["reply"]   # հայերեն անհասկանալին՝ նախկինի պես
 assert "հայերեն տառերով" not in simple("12 34")["reply"]                                  # թվերը հայերեն հուշում չեն առաջացնում
 assert chat.mostly_non_armenian("hello world") and not chat.mostly_non_armenian("BMW արգելակ") and not chat.mostly_non_armenian("ok")
-assert "հայերեն տառերով" in chat.system_prompt()
+assert "մի խնդրիր նրան գրել հայերեն տառերով" in "".join(b["text"] for b in chat.system_prompt())   # AI-ն հայերեն գրել չի խնդրում
 print("«Իմ հայտերը»-ի ստուգման և հայերեն տառերի թեստերն անցան ✓")
 
 # =====================================================================
@@ -633,26 +639,77 @@ assert c.get("/static/leaflet/leaflet.js").status_code == 200 and "unpkg" not in
 print("Քարտեզի և երթուղու թեստերն անցան ✓")
 
 # =====================================================================
-# Հին բազայի migration (Փուլ 5-ի բազան չի կորչում)
+# Հաճախ հարցվող հարցեր (chat-ի chip-երը՝ ըստ ամենաշատ հարցված ծառայությունների)
 # =====================================================================
-import sqlite3, importlib
+with db.connect() as cn:
+    cn.execute("DELETE FROM chat_queries")
+apimod.POPULAR_CACHE.clear()
+r = c.post("/chat", json={"messages": [{"role": "user", "content": "  արգելակելիս   ճռռոց է լսվում "}]}); assert r.status_code == 200
+assert queries.query_stats()["total"] == 1
+assert queries.popular_questions(min_total=1) == [{"service_id": 2, "text": "Արգելակելիս ճռռոց է լսվում", "count": 1}]   # ծառայության օրինակ հարցը, ոչ թե վարորդի ձևակերպումը
+c.post("/chat", json={"messages": [{"role": "user", "content": "արգելակ"}, {"role": "assistant", "content": "..."}, {"role": "user", "content": "օդորակիչը չի սառեցնում"}]})
+assert queries.query_stats()["total"] == 1                                              # խոսակցության հաջորդ հարցերը չեն հաշվվում
+c.post("/chat", json={"messages": [{"role": "user", "content": "ո՞ր գարաժն է հիմա բաց"}]})
+st = queries.query_stats(); assert st["total"] == 2 and st["unmatched"] == [{"text": "ո՞ր գարաժն է հիմա բաց", "n": 1}]   # ծառայություն չգտնվեց -> «չհամընկած»
+apimod.POPULAR_CACHE.clear()
+assert [x["text"] for x in c.get("/popular-questions").json()] == ["Արգելակելիս ճռռոց է լսվում", "Օդորակիչը չի սառեցնում", "Ո՞ր գարաժն է հիմա բաց"]   # քիչ տվյալ -> լռելյայնները
+for _ in range(25): queries.log_query("կոնդիցիոները չի աշխատում", 6, "ai")
+for _ in range(21): queries.log_query("յուղ փոխել", 1, "simple")
+apimod.POPULAR_CACHE.clear()
+pop = c.get("/popular-questions").json()
+assert [x["text"] for x in pop] == ["Օդորակիչը չի սառեցնում", "Յուղը փոխելու ժամանակն է", "Ո՞ր գարաժն է հիմա բաց"], pop   # ըստ քանակի. 25 > 21 > 1
+assert pop[0]["service_id"] == 6 and pop[2]["service_id"] is None
+assert c.get("/popular-questions").json() == pop                                        # քեշը նույնն է տալիս
+# ադմինը փոխում է օրինակ հարցը -> chip-ը փոխվում է
+svc6 = next(s for s in c.get("/admin/data", headers=H).json()["services"] if s["id"] == 6)
+assert svc6["sample_question"] == "Օդորակիչը չի սառեցնում"
+assert c.put("/admin/services/6", headers=H, json={**{k: svc6[k] for k in ("name", "category", "keywords")}, "sample_question": " Կոնդիցիոները չի սառեցնում "}).status_code == 200
+apimod.POPULAR_CACHE.clear()
+assert c.get("/popular-questions").json()[0]["text"] == "Կոնդիցիոները չի սառեցնում"
+# օրինակ հարց չկա -> վարորդների ամենահաճախ ձևակերպումը
+assert c.put("/admin/services/6", headers=H, json={**{k: svc6[k] for k in ("name", "category", "keywords")}, "sample_question": ""}).status_code == 200
+for _ in range(3): queries.log_query("Օդորակիչը տաք է փչում", 6, "ai")
+apimod.POPULAR_CACHE.clear()
+assert c.get("/popular-questions").json()[0]["text"] == "կոնդիցիոները չի աշխատում"      # 25 անգամ > 3 անգամ
+queries.log_query("x" * 500, 2, "simple")
+with db.connect() as cn:
+    assert cn.execute("SELECT MAX(LENGTH(text)) AS m FROM chat_queries").fetchone()["m"] == 200
+assert c.post("/admin/services", headers=H, json={"name": "Փայլ", "sample_question": "x" * 151}).status_code == 422
+print("Հաճախ հարցվող հարցերի թեստերն անցան ✓")
+
+# =====================================================================
+# Հին SQLite բազայից տվյալների ներմուծում (python db.py import-sqlite)
+# =====================================================================
+import sqlite3
 old_path = os.path.join(tempfile.mkdtemp(), "old.db")
 oc = sqlite3.connect(old_path)
 oc.executescript("""CREATE TABLE services (id INTEGER PRIMARY KEY, name TEXT NOT NULL, category TEXT NOT NULL, keywords TEXT NOT NULL DEFAULT '');
-CREATE TABLE garages (id INTEGER PRIMARY KEY, name TEXT NOT NULL, address TEXT NOT NULL, phone TEXT NOT NULL);
-INSERT INTO services VALUES (1,'Յուղ','Սպասարկում','յուղ'); INSERT INTO garages VALUES (7,'Հին գարաժ','Ա 1','+374 1');
+CREATE TABLE garages (id INTEGER PRIMARY KEY, name TEXT NOT NULL, address TEXT NOT NULL, phone TEXT NOT NULL, login TEXT, password_hash TEXT);
+INSERT INTO services VALUES (1,'Յուղ','Սպասարկում','յուղ'); INSERT INTO garages VALUES (7,'Հին գարաժ','Ա 1','+374 1','old',NULL);
+CREATE TABLE garage_services (garage_id INTEGER, service_id INTEGER, price INTEGER, duration_min INTEGER, PRIMARY KEY (garage_id, service_id));
+INSERT INTO garage_services VALUES (7,1,9000,30);
 CREATE TABLE requests (id INTEGER PRIMARY KEY, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, name TEXT NOT NULL, phone TEXT NOT NULL,
   garage_id INTEGER REFERENCES garages(id) ON DELETE SET NULL, service_id INTEGER REFERENCES services(id) ON DELETE SET NULL,
   message TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new','done')));
-INSERT INTO requests(id,name,phone,garage_id,status) VALUES (1,'Հին մշակված','+374 1',7,'done'),(2,'Հին նոր','+374 2',7,'new');""")
+INSERT INTO requests(id,created_at,name,phone,garage_id,status) VALUES (1,'2025-01-02 03:04:05','Հին մշակված','+374 1',7,'done'),(2,'2025-01-03 00:00:00','Հին նոր','+374 2',7,'new');""")
 oc.commit(); oc.close()
-db.DB_PATH = db.Path(old_path); db._ready.clear()
-assert queries.get_garage(7).name == "Հին գարաժ"                                      # հին տվյալները մնացել են
-assert queries.set_garage_login(7, "old", auth.hash_password("old-password")) == "ok"  # նոր սյուները ավելացել են
+import_url = testdb.create()                                   # առանձին դատարկ բազա ներմուծման համար
+db.close(); db.DATABASE_URL = os.environ["DATABASE_URL"] = import_url
+counts = db.import_sqlite(old_path)
+assert counts == {"services": 1, "garages": 1, "garage_services": 1, "requests": 2}, counts
+assert queries.get_garage(7).name == "Հին գարաժ" and queries.get_garage(7).services[1].price == 9000   # հին տվյալները տեղափոխվել են
+assert queries.set_garage_login(7, "old", auth.hash_password("old-password")) == "ok"
 assert queries.find_garage_login("old")[0] == 7
-print("Migration-ի թեստը անցավ ✓")
+assert queries.create_garage("Նոր", "Բ 2", "+374 3") == 8                                   # id-ների հաջորդականությունը շարունակվում է
+print("SQLite-ից ներմուծման թեստը անցավ ✓")
 old_reqs = {r["id"]: r["status"] for r in queries.list_requests()}
 assert old_reqs == {1: "called", 2: "new"}, old_reqs                                    # «done» -> «called», տվյալները մնացել են
+assert queries.request_row(1)["created_at"] == "2025-01-02 03:04:05"                   # ժամանակը նույն ձևաչափով է
 assert queries.set_request_status(2, "booked") and queries.set_request_status(1, "declined", "price")   # նոր փուլերը թույլատրված են
 assert queries.request_row(2)["first_response_at"] is not None
-print("Հին հայտերի աղյուսակի migration-ը անցավ ✓")
+assert queries.create_request("Ն", "+374 91 111111", 7, 1, "") == 3
+try:
+    db.import_sqlite(old_path); raise AssertionError("դատարկ չէ՝ պետք է մերժվեր")
+except SystemExit:
+    pass
+print("Հին հայտերի ներմուծման թեստը անցավ ✓")

@@ -1,0 +1,16 @@
+# syntax=docker/dockerfile:1.7
+# Android APK build առանց տեղական SDK-ի. cimg/android-ում կա JDK 17 + SDK + build-tools (circleci user, uid 1001)
+# docker build -f Dockerfile.android -o out . → out/app-debug.apk, out/app-release-unsigned.apk
+# Gradle-ի քեշը BuildKit cache mount-ում է, երկրորդ build-ը արագ է։
+FROM cimg/android:2024.11 AS build
+WORKDIR /src
+COPY --chown=circleci app.json ./app.json
+COPY --chown=circleci shared ./shared
+COPY --chown=circleci android ./android
+WORKDIR /src/android
+ARG TASKS="assembleDebug assembleRelease"
+RUN --mount=type=cache,target=/home/circleci/.gradle,uid=1001,gid=1002 \
+    ./gradlew --no-daemon $TASKS
+
+FROM scratch
+COPY --from=build /src/android/app/build/outputs/apk/ /

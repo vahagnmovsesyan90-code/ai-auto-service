@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="hy">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Auto Service</title>
+<style>
+  html, body { margin: 0; height: 100%; font-family: Inter, "Noto Sans Armenian", system-ui, -apple-system, sans-serif; background: #F4F6F5; color: #16201B; }
+  .box { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2rem; box-sizing: border-box; }
+  .ico { width: 72px; height: 72px; border-radius: 20px; background: #E3F5EB; color: #0E7C53; display: flex; align-items: center; justify-content: center; margin-bottom: 1.2rem; }
+  h1 { font-size: 1.25rem; margin: 0 0 .5rem; }
+  p { color: #5B6660; margin: 0 0 1.5rem; max-width: 22rem; line-height: 1.5; }
+  a.btn { display: inline-block; background: #0E7C53; color: #fff; text-decoration: none; padding: .8rem 1.6rem; border-radius: 12px; font-weight: 600; }
+  @media (prefers-color-scheme: dark) { html, body { background: #16201B; color: #F4F6F5; } .ico { background: #0B4A33; color: #9FE0C0; } p { color: #A5ADA9; } }
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="ico"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h.01"/><path d="M8.5 16.4a5 5 0 0 1 7 0"/><path d="M5 12.9a10 10 0 0 1 14 0"/><path d="M2 9a15 15 0 0 1 20 0"/><path d="m2 2 20 20"/></svg></div>
+  <h1 data-i18n="title">Կապ չկա</h1>
+  <p data-i18n="text">Չհաջողվեց բացել AI Auto Service-ը։ Ստուգեք ինտերնետ կապը և փորձեք նորից։</p>
+  <a class="btn" href="app://retry" data-i18n="retry">Փորձել նորից</a>
+</div>
+<script>
+  // Սարքի լեզվով տեքստ (հայերենը՝ լռելյայն)
+  var L = { en: { title: 'No connection', text: 'AI Auto Service could not be opened. Check your internet connection and try again.', retry: 'Try again' },
+            ru: { title: 'Нет соединения', text: 'Не удалось открыть AI Auto Service. Проверьте подключение к интернету и попробуйте снова.', retry: 'Попробовать снова' } };
+  var lang = (navigator.language || '').slice(0, 2), t = L[lang];
+  if (t) document.querySelectorAll('[data-i18n]').forEach(function (el) { el.textContent = t[el.dataset.i18n]; });
+</script>
+</body>
+</html>

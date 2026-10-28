@@ -113,6 +113,6 @@ def rate_limit(limiter: RateLimiter, request: Request) -> None:
 
 
 chat_limiter = RateLimiter(20)    # chat՝ պաշտպանում է AI-ի ծախսերը
-request_limiter = RateLimiter(5)  # հայտեր
+request_limiter = RateLimiter(int(os.getenv("REQUEST_RATE_LIMIT", "5")))  # հայտեր. թեստերը բարձրացնում են (test_browser.py)
 geocode_limiter = RateLimiter(10)  # հասցեի որոնում (Nominatim-ի կանոններ)
 login_limiter = RateLimiter(10)   # մուտք՝ գաղտնաբառի կռահման դեմ

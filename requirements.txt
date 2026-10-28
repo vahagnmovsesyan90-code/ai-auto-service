@@ -3,3 +3,5 @@ uvicorn[standard]
 tzdata
 httpx
 anthropic
+psycopg[binary]
+psycopg_pool

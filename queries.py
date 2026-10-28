@@ -9,7 +9,7 @@ def all_services() -> list[Service]:
     with connect() as c:
         rows = c.execute("SELECT * FROM services ORDER BY id").fetchall()
     return [Service(r["id"], r["name"], r["category"],
-                    tuple(k for k in r["keywords"].split(",") if k)) for r in rows]
+                    tuple(k for k in r["keywords"].split(",") if k), r["sample_question"] or "") for r in rows]
 
 
 def all_garages() -> list[Garage]:
@@ -29,6 +29,43 @@ def all_garages() -> list[Garage]:
                 g.services[o["service_id"]] = GarageService(o["service_id"], o["price"], o["duration_min"])
         result.append(g)
     return result
+
+
+def catalog_page(q: str, service_ids: list[int], offset: int, limit: int) -> tuple[list[dict], int]:
+    """Գարաժների էջ՝ էջավորումը սերվերում (հազարավոր գարաժների համար)։ Գարաժը համընկնում է, եթե անունը կամ հասցեն
+    պարունակում է տեքստը, կամ առաջարկում է service_ids-ից որևէ ծառայություն (դրանք AI-ն է որոշել տեքստից)։"""
+    like = f"%{q.strip()}%"
+    where, args = "", ()
+    if q.strip():
+        where = """WHERE g.name ILIKE %s OR g.address ILIKE %s
+                   OR EXISTS (SELECT 1 FROM garage_services gs WHERE gs.garage_id = g.id AND gs.service_id = ANY(%s))"""
+        args = (like, like, list(service_ids))
+    with connect() as c:
+        total = c.execute(f"SELECT COUNT(*) AS n FROM garages g {where}", args).fetchone()["n"]
+        rows = c.execute(f"""SELECT g.id, g.name, g.address, g.phone,
+                                    (SELECT COUNT(*) FROM garage_services gs WHERE gs.garage_id = g.id) AS services_count
+                             FROM garages g {where} ORDER BY g.name, g.id LIMIT %s OFFSET %s""",
+                         args + (limit, offset)).fetchall()
+        ids = [r["id"] for r in rows]
+        hours = c.execute("SELECT garage_id, weekday, open_time, close_time FROM working_hours WHERE garage_id = ANY(%s)",
+                          (ids,)).fetchall() if ids else []
+    out = []
+    for r in rows:
+        g = Garage(r["id"], r["name"], r["address"], r["phone"])
+        for h in hours:
+            if h["garage_id"] == g.id:
+                g.hours[h["weekday"]] = (time.fromisoformat(h["open_time"]), time.fromisoformat(h["close_time"]))
+        out.append({"garage": g, "services_count": r["services_count"]})
+    return out, total
+
+
+def garage_services(garage_id: int) -> list[dict]:
+    """Գարաժի ծառայությունները գներով՝ կատեգորիայով և անունով դասավորված (գարաժի էջ)։"""
+    with connect() as c:
+        rows = c.execute("""SELECT s.id AS service_id, s.name, s.category, gs.price, gs.duration_min
+                            FROM garage_services gs JOIN services s ON s.id = gs.service_id
+                            WHERE gs.garage_id = %s ORDER BY s.category, s.name""", (garage_id,)).fetchall()
+    return [dict(r) for r in rows]
 
 
 def get_service(service_id: int) -> Service | None:
@@ -67,14 +104,15 @@ def set_price(garage_id: int, service_id: int, price: int) -> bool:
     if price < 0:
         return False
     with connect() as c:
-        cur = c.execute("UPDATE garage_services SET price=? WHERE garage_id=? AND service_id=?",
+        cur = c.execute("UPDATE garage_services SET price=%s WHERE garage_id=%s AND service_id=%s",
                         (price, garage_id, service_id))
         return cur.rowcount == 1
 
 
 # ================= Ադմինի գործողություններ (Փուլ 6) =================
 import secrets
-import sqlite3
+
+import psycopg
 
 
 def _kw(keywords: list[str]) -> str:
@@ -84,10 +122,10 @@ def _kw(keywords: list[str]) -> str:
 def create_garage(name: str, address: str, phone: str) -> int:
     """Նոր գարաժ՝ լռելյայն Երկ–Ուրբ 09:00–18:00։"""
     with connect() as c:
-        gid = c.execute("INSERT INTO garages(name,address,phone) VALUES (?,?,?)",
-                        (name, address, phone)).lastrowid
+        gid = c.execute("INSERT INTO garages(name,address,phone) VALUES (%s,%s,%s) RETURNING id",
+                        (name, address, phone)).fetchone()["id"]
         for d in range(5):
-            c.execute("INSERT INTO working_hours VALUES (?,?,?,?)", (gid, d, "09:00", "18:00"))
+            c.execute("INSERT INTO working_hours VALUES (%s,%s,%s,%s)", (gid, d, "09:00", "18:00"))
     return gid
 
 
@@ -95,70 +133,124 @@ def update_garage(garage_id: int, name: str, address: str, phone: str) -> bool:
     """Եթե հասցեն փոխվել է, հին կետը հանվում է. վարորդներին սխալ տեղ չենք ուղարկում,
     մինչև սեփականատերը նոր կետը չհաստատի։"""
     with connect() as c:
-        old = c.execute("SELECT address FROM garages WHERE id=?", (garage_id,)).fetchone()
+        old = c.execute("SELECT address FROM garages WHERE id=%s", (garage_id,)).fetchone()
         if old is None:
             return False
         changed = (old["address"] or "").strip() != address.strip()
-        c.execute("UPDATE garages SET name=?, address=?, phone=?, lat=CASE WHEN ? THEN NULL ELSE lat END, "
-                  "lng=CASE WHEN ? THEN NULL ELSE lng END WHERE id=?",
+        c.execute("UPDATE garages SET name=%s, address=%s, phone=%s, lat=CASE WHEN %s THEN NULL ELSE lat END, "
+                  "lng=CASE WHEN %s THEN NULL ELSE lng END WHERE id=%s",
                   (name, address, phone, changed, changed, garage_id))
         return True
 
 
 def set_garage_location(garage_id: int, lat: float | None, lng: float | None) -> bool:
     with connect() as c:
-        return c.execute("UPDATE garages SET lat=?, lng=? WHERE id=?", (lat, lng, garage_id)).rowcount == 1
+        return c.execute("UPDATE garages SET lat=%s, lng=%s WHERE id=%s", (lat, lng, garage_id)).rowcount == 1
 
 
 def delete_garage(garage_id: int) -> bool:
     with connect() as c:
-        return c.execute("DELETE FROM garages WHERE id=?", (garage_id,)).rowcount == 1
+        return c.execute("DELETE FROM garages WHERE id=%s", (garage_id,)).rowcount == 1
 
 
 def upsert_garage_service(garage_id: int, service_id: int, price: int, duration_min: int) -> bool:
     try:
         with connect() as c:
-            c.execute("""INSERT INTO garage_services VALUES (?,?,?,?)
+            c.execute("""INSERT INTO garage_services VALUES (%s,%s,%s,%s)
                          ON CONFLICT(garage_id, service_id)
                          DO UPDATE SET price=excluded.price, duration_min=excluded.duration_min""",
                       (garage_id, service_id, price, duration_min))
         return True
-    except sqlite3.IntegrityError:  # գարաժը կամ ծառայությունը գոյություն չունի
+    except psycopg.IntegrityError:  # գարաժը կամ ծառայությունը գոյություն չունի
         return False
 
 
 def delete_garage_service(garage_id: int, service_id: int) -> bool:
     with connect() as c:
-        return c.execute("DELETE FROM garage_services WHERE garage_id=? AND service_id=?",
+        return c.execute("DELETE FROM garage_services WHERE garage_id=%s AND service_id=%s",
                          (garage_id, service_id)).rowcount == 1
 
 
 def set_hours(garage_id: int, days: list[tuple[int, str, str]]) -> bool:
     """Փոխարինում է աշխատանքային ժամերը. days = [(օր, "HH:MM", "HH:MM"), ...]՝ միայն բաց օրերը։"""
     with connect() as c:
-        if c.execute("SELECT 1 FROM garages WHERE id=?", (garage_id,)).fetchone() is None:
+        if c.execute("SELECT 1 FROM garages WHERE id=%s", (garage_id,)).fetchone() is None:
             return False
-        c.execute("DELETE FROM working_hours WHERE garage_id=?", (garage_id,))
+        c.execute("DELETE FROM working_hours WHERE garage_id=%s", (garage_id,))
         for d, o, cl in days:
-            c.execute("INSERT INTO working_hours VALUES (?,?,?,?)", (garage_id, d, o, cl))
+            c.execute("INSERT INTO working_hours VALUES (%s,%s,%s,%s)", (garage_id, d, o, cl))
     return True
 
 
-def create_service(name: str, category: str, keywords: list[str]) -> int:
+def create_service(name: str, category: str, keywords: list[str], sample_question: str = "") -> int:
     with connect() as c:
-        return c.execute("INSERT INTO services(name,category,keywords) VALUES (?,?,?)",
-                         (name, category, _kw(keywords))).lastrowid
+        return c.execute("INSERT INTO services(name,category,keywords,sample_question) VALUES (%s,%s,%s,%s) RETURNING id",
+                         (name, category, _kw(keywords), sample_question.strip())).fetchone()["id"]
 
 
-def update_service(service_id: int, name: str, category: str, keywords: list[str]) -> bool:
+def update_service(service_id: int, name: str, category: str, keywords: list[str], sample_question: str = "") -> bool:
     with connect() as c:
-        return c.execute("UPDATE services SET name=?, category=?, keywords=? WHERE id=?",
-                         (name, category, _kw(keywords), service_id)).rowcount == 1
+        return c.execute("UPDATE services SET name=%s, category=%s, keywords=%s, sample_question=%s WHERE id=%s",
+                         (name, category, _kw(keywords), sample_question.strip(), service_id)).rowcount == 1
+
+
+# ================= Հաճախ հարցվող հարցեր =================
+QUERY_MAX_LEN = 200
+QUERY_KEEP_DAYS = 90
+
+
+def log_query(text: str, service_id: int | None, mode: str) -> None:
+    """Պահում է վարորդի առաջին հարցը և ծառայությունը, որին chat-ը այն հասցրեց։
+    Նույն իմաստով տարբեր ձևակերպումները խմբավորվում են հենց ծառայությունով։ Հինը (90 օր) ջնջվում է։"""
+    text = " ".join(text.split())[:QUERY_MAX_LEN]
+    if not text:
+        return
+    with connect() as c:
+        c.execute("DELETE FROM chat_queries WHERE created_at < now() - make_interval(days => %s)", (QUERY_KEEP_DAYS,))
+        c.execute("INSERT INTO chat_queries(text, service_id, mode) VALUES (%s,%s,%s)", (text, service_id, mode))
+
+
+def popular_questions(days: int = 30, limit: int = 3, min_total: int = 20) -> list[dict]:
+    """Ամենաշատ հարցված ծառայությունները վերջին `days` օրում՝ [{service_id, text, count}]։
+    Տեքստը ծառայության «օրինակ հարցն» է, եթե չկա՝ այդ ծառայության ամենահաճախ բառացի հարցը։
+    Եթե ընդհանուր հարցերը `min_total`-ից քիչ են, վերադարձնում է դատարկ ցուցակ (վիճակագրությունը դեռ վստահելի չէ)։"""
+    with connect() as c:
+        total = c.execute("SELECT COUNT(*) AS n FROM chat_queries WHERE created_at >= now() - make_interval(days => %s)",
+                          (days,)).fetchone()["n"]
+        if total < min_total:
+            return []
+        rows = c.execute("""SELECT q.service_id, s.sample_question, COUNT(*)::int AS n
+                            FROM chat_queries q JOIN services s ON s.id = q.service_id
+                            WHERE q.created_at >= now() - make_interval(days => %s)
+                            GROUP BY q.service_id, s.sample_question ORDER BY n DESC, q.service_id LIMIT %s""",
+                         (days, limit)).fetchall()
+        out = []
+        for r in rows:
+            text = (r["sample_question"] or "").strip()
+            if not text:   # օրինակ հարց չկա. վերցնում ենք վարորդների ամենահաճախ ձևակերպումը
+                t = c.execute("""SELECT lower(text) AS t, COUNT(*) AS n FROM chat_queries
+                                 WHERE service_id=%s AND created_at >= now() - make_interval(days => %s)
+                                 GROUP BY lower(text) ORDER BY n DESC LIMIT 1""", (r["service_id"], days)).fetchone()
+                text = t["t"] if t else ""
+            if text:
+                out.append({"service_id": r["service_id"], "text": text, "count": r["n"]})
+    return out
+
+
+def query_stats(days: int = 30) -> dict:
+    """Ադմինի համար. հարցերի քանակը և ծառայություն չգտած հարցերը (ինչ են հարցնում, ինչը կատալոգում չկա)։"""
+    with connect() as c:
+        total = c.execute("SELECT COUNT(*) AS n FROM chat_queries WHERE created_at >= now() - make_interval(days => %s)",
+                          (days,)).fetchone()["n"]
+        unmatched = c.execute("""SELECT text, COUNT(*)::int AS n FROM chat_queries
+                                 WHERE service_id IS NULL AND created_at >= now() - make_interval(days => %s)
+                                 GROUP BY text ORDER BY n DESC LIMIT 20""", (days,)).fetchall()
+    return {"days": days, "total": total, "unmatched": [dict(r) for r in unmatched]}
 
 
 def delete_service(service_id: int) -> bool:
     with connect() as c:
-        return c.execute("DELETE FROM services WHERE id=?", (service_id,)).rowcount == 1
+        return c.execute("DELETE FROM services WHERE id=%s", (service_id,)).rowcount == 1
 
 
 # ================= Վարորդների հայտեր (Փուլ 7) =================
@@ -166,9 +258,9 @@ def create_request(name: str, phone: str, garage_id: int | None,
                    service_id: int | None, message: str) -> int | None:
     try:
         with connect() as c:
-            return c.execute("INSERT INTO requests(name,phone,garage_id,service_id,message,review_token) VALUES (?,?,?,?,?,?)",
-                             (name, phone, garage_id, service_id, message, secrets.token_urlsafe(16))).lastrowid
-    except sqlite3.IntegrityError:
+            return c.execute("INSERT INTO requests(name,phone,garage_id,service_id,message,review_token) VALUES (%s,%s,%s,%s,%s,%s) RETURNING id",
+                             (name, phone, garage_id, service_id, message, secrets.token_urlsafe(16))).fetchone()["id"]
+    except psycopg.IntegrityError:
         return None
 
 
@@ -178,7 +270,7 @@ DECLINE_REASONS = ("price", "far", "other_garage", "no_time", "changed_mind", "o
 
 def list_requests(garage_id: int | None = None) -> list[dict]:
     """Բոլոր հայտերը, կամ միայն տվյալ գարաժինը (գարաժի սեփականատիրոջ համար)։"""
-    where, args = ("WHERE r.garage_id = ?", (garage_id,)) if garage_id is not None else ("", ())
+    where, args = ("WHERE r.garage_id = %s", (garage_id,)) if garage_id is not None else ("", ())
     with connect() as c:
         rows = c.execute(f"""SELECT r.id, r.created_at, r.name, r.phone, r.message, r.status,
                                    r.decline_reason, r.status_changed_at, r.first_response_at,
@@ -193,7 +285,7 @@ def request_row(request_id: int) -> dict | None:
     with connect() as c:
         r = c.execute("""SELECT r.*, g.name AS garage, g.telegram_chat_id AS garage_chat_id, s.name AS service
                          FROM requests r LEFT JOIN garages g ON g.id = r.garage_id
-                         LEFT JOIN services s ON s.id = r.service_id WHERE r.id = ?""",
+                         LEFT JOIN services s ON s.id = r.service_id WHERE r.id = %s""",
                       (request_id,)).fetchone()
     return dict(r) if r else None
 
@@ -202,9 +294,9 @@ def set_request_garage(request_id: int, garage_id: int | None) -> str:
     """Նշանակում է հայտը գարաժին (կամ հանում՝ None)։ Վերադարձնում է "ok" | "notfound" | "badgarage"։"""
     try:
         with connect() as c:
-            n = c.execute("UPDATE requests SET garage_id=? WHERE id=?", (garage_id, request_id)).rowcount
+            n = c.execute("UPDATE requests SET garage_id=%s WHERE id=%s", (garage_id, request_id)).rowcount
         return "ok" if n == 1 else "notfound"
-    except sqlite3.IntegrityError:
+    except psycopg.IntegrityError:
         return "badgarage"
 
 
@@ -214,14 +306,14 @@ def set_request_status(request_id: int, status: str, decline_reason: str | None 
     if status not in STATUSES or (decline_reason is not None and decline_reason not in DECLINE_REASONS):
         return False
     with connect() as c:
-        row = c.execute("SELECT status, first_response_at FROM requests WHERE id=?", (request_id,)).fetchone()
+        row = c.execute("SELECT status, first_response_at FROM requests WHERE id=%s", (request_id,)).fetchone()
         if row is None:
             return False
         first = row["first_response_at"] is None and row["status"] == "new" and status != "new"
-        c.execute("""UPDATE requests SET status=?, decline_reason=?, status_changed_at=CURRENT_TIMESTAMP,
-                     first_response_at=CASE WHEN ? THEN CURRENT_TIMESTAMP ELSE first_response_at END
-                     WHERE id=?""",
-                  (status, decline_reason if status == "declined" else None, 1 if first else 0, request_id))
+        c.execute("""UPDATE requests SET status=%s, decline_reason=%s, status_changed_at=CURRENT_TIMESTAMP,
+                     first_response_at=CASE WHEN %s THEN CURRENT_TIMESTAMP ELSE first_response_at END
+                     WHERE id=%s""",
+                  (status, decline_reason if status == "declined" else None, first, request_id))
     return True
 
 
@@ -249,13 +341,13 @@ def _metrics(rows: list) -> dict:
 def request_report(start_utc: str, end_utc: str, garage_id: int | None = None) -> dict:
     """Հայտերի հաշվետվություն ըստ ստեղծման ժամանակի [start, end) (UTC տողեր)։
     Վիճակները ընթացիկն են (պատմություն չենք պահում)։"""
-    where, args = "WHERE r.created_at >= ? AND r.created_at < ?", [start_utc, end_utc]
+    where, args = "WHERE r.created_at >= %s AND r.created_at < %s", [start_utc, end_utc]
     if garage_id is not None:
-        where, args = where + " AND r.garage_id = ?", args + [garage_id]
+        where, args = where + " AND r.garage_id = %s", args + [garage_id]
     with connect() as c:
         rows = c.execute(f"""SELECT r.garage_id, r.status, r.decline_reason, r.created_at, r.first_response_at, rv.went
                              FROM requests r LEFT JOIN reviews rv ON rv.request_id = r.id {where}""", args).fetchall()
-        garages = c.execute("SELECT id, name FROM garages" + (" WHERE id = ?" if garage_id is not None else "") +
+        garages = c.execute("SELECT id, name FROM garages" + (" WHERE id = %s" if garage_id is not None else "") +
                             " ORDER BY id", (garage_id,) if garage_id is not None else ()).fetchall()
     out = [{"garage_id": g["id"], "name": g["name"], **_metrics([r for r in rows if r["garage_id"] == g["id"]])}
            for g in garages]
@@ -274,29 +366,29 @@ def set_garage_login(garage_id: int, login: str, password_hash: str) -> str:
     """"ok" | "taken" (մուտքանունը զբաղված է) | "notfound"։"""
     try:
         with connect() as c:
-            n = c.execute("UPDATE garages SET login=?, password_hash=? WHERE id=?",
+            n = c.execute("UPDATE garages SET login=%s, password_hash=%s WHERE id=%s",
                           (login.lower(), password_hash, garage_id)).rowcount
         return "ok" if n == 1 else "notfound"
-    except sqlite3.IntegrityError:
+    except psycopg.IntegrityError:
         return "taken"
 
 
 def clear_garage_login(garage_id: int) -> bool:
     with connect() as c:
-        return c.execute("UPDATE garages SET login=NULL, password_hash=NULL WHERE id=?",
+        return c.execute("UPDATE garages SET login=NULL, password_hash=NULL WHERE id=%s",
                          (garage_id,)).rowcount == 1
 
 
 def find_garage_login(login: str) -> tuple[int, str] | None:
     with connect() as c:
-        r = c.execute("SELECT id, password_hash FROM garages WHERE login=? AND password_hash IS NOT NULL",
+        r = c.execute("SELECT id, password_hash FROM garages WHERE login=%s AND password_hash IS NOT NULL",
                       (login.lower(),)).fetchone()
     return (r["id"], r["password_hash"]) if r else None
 
 
 def garage_login_active(garage_id: int) -> bool:
     with connect() as c:
-        return c.execute("SELECT 1 FROM garages WHERE id=? AND password_hash IS NOT NULL",
+        return c.execute("SELECT 1 FROM garages WHERE id=%s AND password_hash IS NOT NULL",
                          (garage_id,)).fetchone() is not None
 
 
@@ -309,32 +401,32 @@ def garage_accounts() -> dict[int, dict]:
 def create_link_code(kind: str, garage_id: int | None = None) -> str:
     code = secrets.token_urlsafe(9)  # միայն A-Za-z0-9_- (Telegram-ի /start պարամետրի համար)
     with connect() as c:
-        c.execute("DELETE FROM link_codes WHERE created_at < datetime('now','-1 hour')")
-        c.execute("DELETE FROM link_codes WHERE kind=? AND garage_id IS ?", (kind, garage_id))
-        c.execute("INSERT INTO link_codes(code, kind, garage_id) VALUES (?,?,?)", (code, kind, garage_id))
+        c.execute("DELETE FROM link_codes WHERE created_at < now() - interval '1 hour'")
+        c.execute("DELETE FROM link_codes WHERE kind=%s AND garage_id IS NOT DISTINCT FROM %s", (kind, garage_id))
+        c.execute("INSERT INTO link_codes(code, kind, garage_id) VALUES (%s,%s,%s)", (code, kind, garage_id))
     return code
 
 
 def consume_link_code(code: str, chat_id: int) -> tuple[str, str | None] | None:
     """Մեկանգամյա կոդով կապում է Telegram chat-ը։ Վերադարձնում է ("garage", անուն) | ("admin", None) | None։"""
     with connect() as c:
-        c.execute("DELETE FROM link_codes WHERE created_at < datetime('now','-1 hour')")
-        row = c.execute("SELECT * FROM link_codes WHERE code=?", (code,)).fetchone()
+        c.execute("DELETE FROM link_codes WHERE created_at < now() - interval '1 hour'")
+        row = c.execute("SELECT * FROM link_codes WHERE code=%s", (code,)).fetchone()
         if row is None:
             return None
-        c.execute("DELETE FROM link_codes WHERE code=?", (code,))
+        c.execute("DELETE FROM link_codes WHERE code=%s", (code,))
         if row["kind"] == "admin":
-            c.execute("""INSERT INTO settings VALUES ('admin_chat_id', ?)
+            c.execute("""INSERT INTO settings VALUES ('admin_chat_id', %s)
                          ON CONFLICT(key) DO UPDATE SET value=excluded.value""", (str(chat_id),))
             return ("admin", None)
-        c.execute("UPDATE garages SET telegram_chat_id=? WHERE id=?", (chat_id, row["garage_id"]))
-        g = c.execute("SELECT name FROM garages WHERE id=?", (row["garage_id"],)).fetchone()
+        c.execute("UPDATE garages SET telegram_chat_id=%s WHERE id=%s", (chat_id, row["garage_id"]))
+        g = c.execute("SELECT name FROM garages WHERE id=%s", (row["garage_id"],)).fetchone()
         return ("garage", g["name"] if g else None)
 
 
 def unlink_garage_telegram(garage_id: int) -> bool:
     with connect() as c:
-        return c.execute("UPDATE garages SET telegram_chat_id=NULL WHERE id=?", (garage_id,)).rowcount == 1
+        return c.execute("UPDATE garages SET telegram_chat_id=NULL WHERE id=%s", (garage_id,)).rowcount == 1
 
 
 def get_admin_chat_id() -> int | None:
@@ -367,7 +459,7 @@ def garage_ratings(garage_id: int | None = None) -> dict[int, dict]:
     """garage_id -> {avg, count, score}. Հաշվվում են միայն թաքցված չեղած, «գնացի» կարծիքները։
     score-ը Bayes-ի միջինն է՝ դասավորելու համար (1 կարծիքով 5.0-ը չի հաղթում 50 կարծիքով 4.7-ին)։"""
     with connect() as c:
-        rows = c.execute("""SELECT garage_id, COUNT(*) n, AVG(rating) a FROM reviews
+        rows = c.execute("""SELECT garage_id, COUNT(*)::int AS n, AVG(rating)::float AS a FROM reviews
                             WHERE went = 1 AND hidden = 0 GROUP BY garage_id""").fetchall()
     total_n = sum(r["n"] for r in rows)
     # նախնական միջինը. քիչ տվյալի դեպքում մոտ է 4.0-ին, որպեսզի մեկ կարծիքը ինքն իրեն չդարձնի «նորմա»
@@ -390,13 +482,15 @@ def review_context(token: str) -> dict | None:
                          FROM requests r LEFT JOIN garages g ON g.id = r.garage_id
                          LEFT JOIN services s ON s.id = r.service_id
                          LEFT JOIN reviews rv ON rv.request_id = r.id
-                         WHERE r.review_token = ?""", (token,)).fetchone()
+                         WHERE r.review_token = %s""", (token,)).fetchone()
     return dict(r) if r else None
 
 
 def create_review(token: str, went: bool, rating: int | None, comment: str, reason: str | None,
                   display_name: str) -> str:
-    """"ok" | "notfound" | "nogarage" (հայտը գարաժի չի նշանակված) | "already" | "duplicate" (նույն համարից նույն գարաժին 30 օրում)։"""
+    """"ok" | "notfound" | "nogarage" (հայտը գարաժի չի նշանակված) | "already" (այս հայտը արդեն գնահատված է)
+    | "updated" (նույն համարից նույն գարաժին 30 օրում արդեն կար «գնացի» կարծիք. այն թարմացվեց՝ նոր աստղեր, կարծիք, անուն.
+      գարաժը կրկնակի կարծիք չի ստանում, իսկ վարորդի գրածը չի կորչում)։"""
     ctx = review_context(token)
     if ctx is None:
         return "notfound"
@@ -405,28 +499,31 @@ def create_review(token: str, went: bool, rating: int | None, comment: str, reas
     if ctx["review_id"] is not None:
         return "already"
     key = phone_key(ctx["phone"])
-    with connect() as c:
-        if went:
-            dup = c.execute("""SELECT 1 FROM reviews WHERE garage_id=? AND phone_key=? AND went=1
-                               AND created_at >= datetime('now','-30 days')""", (ctx["garage_id"], key)).fetchone()
-            if dup:
-                return "duplicate"
-        try:
+    try:
+        with connect() as c:
+            if went:
+                dup = c.execute("""SELECT id FROM reviews WHERE garage_id=%s AND phone_key=%s AND went=1
+                                   AND created_at >= now() - interval '30 days' ORDER BY created_at DESC LIMIT 1""",
+                                (ctx["garage_id"], key)).fetchone()
+                if dup:
+                    c.execute("UPDATE reviews SET rating=%s, comment=%s, display_name=%s WHERE id=%s",
+                              (rating, comment, display_name, dup["id"]))
+                    return "updated"
             c.execute("""INSERT INTO reviews(request_id, garage_id, service_id, phone_key, went, rating, comment, reason, display_name)
-                         VALUES (?,?,(SELECT service_id FROM requests WHERE id=?),?,?,?,?,?,?)""",
+                         VALUES (%s,%s,(SELECT service_id FROM requests WHERE id=%s),%s,%s,%s,%s,%s,%s)""",
                       (ctx["request_id"], ctx["garage_id"], ctx["request_id"], key, 1 if went else 0,
                        rating if went else None, comment, None if went else reason, display_name))
-        except sqlite3.IntegrityError:
-            return "already"
+    except psycopg.IntegrityError:
+        return "already"
     return "ok"
 
 
-def public_reviews(garage_id: int, limit: int = 20) -> list[dict]:
+def public_reviews(garage_id: int, limit: int = 20, offset: int = 0) -> list[dict]:
     with connect() as c:
         rows = c.execute("""SELECT rv.rating, rv.comment, rv.display_name, rv.created_at, s.name AS service
                             FROM reviews rv LEFT JOIN services s ON s.id = rv.service_id
-                            WHERE rv.garage_id=? AND rv.went=1 AND rv.hidden=0
-                            ORDER BY rv.id DESC LIMIT ?""", (garage_id, limit)).fetchall()
+                            WHERE rv.garage_id=%s AND rv.went=1 AND rv.hidden=0
+                            ORDER BY rv.id DESC LIMIT %s OFFSET %s""", (garage_id, limit, offset)).fetchall()
     return [dict(r) for r in rows]
 
 
@@ -434,7 +531,7 @@ def admin_reviews(garage_id: int | None = None, is_admin: bool = False) -> list[
     """Ադմինը տեսնում է ամեն ինչ (թաքցվածները և «չգնացի»-ները), գարաժը՝ միայն իր հրապարակային կարծիքները։"""
     where, args = [], []
     if garage_id is not None:
-        where.append("rv.garage_id = ?"); args.append(garage_id)
+        where.append("rv.garage_id = %s"); args.append(garage_id)
     if not is_admin:
         where.append("rv.went = 1 AND rv.hidden = 0")
     sql = "WHERE " + " AND ".join(where) if where else ""
@@ -448,23 +545,36 @@ def admin_reviews(garage_id: int | None = None, is_admin: bool = False) -> list[
 
 def set_review_hidden(review_id: int, hidden: bool, reason: str | None) -> bool:
     with connect() as c:
-        return c.execute("UPDATE reviews SET hidden=?, hidden_reason=? WHERE id=?",
+        return c.execute("UPDATE reviews SET hidden=%s, hidden_reason=%s WHERE id=%s",
                          (1 if hidden else 0, reason if hidden else None, review_id)).rowcount == 1
 
 
 def existing_review_tokens(tokens: list[str]) -> list[dict]:
     """«Իմ հայտերը» ցուցակի ստուգում. վերադարձնում է միայն այն հղումները, որոնք սերվերում դեռ կան
     (օր.՝ անվճար հոսթինգի վերագործարկումից հետո հին հղումները դադարում են գոյություն ունենալ)։"""
-    tokens = [t for t in dict.fromkeys(tokens) if t][:20]
+    tokens = [t for t in dict.fromkeys(tokens) if t][:200]
     if not tokens:
         return []
-    marks = ",".join("?" * len(tokens))
+    marks = ",".join(["%s"] * len(tokens))
     with connect() as c:
-        rows = c.execute(f"""SELECT r.review_token AS token, g.name AS garage, s.name AS service, r.garage_id,
-                                    rv.id AS review_id
+        # dup. նույն համարից նույն գարաժին 30 օրում արդեն տրված «գնացի» կարծիքը (create_review-ի «duplicate» կանոնը).
+        # այդ դեպքում հայտը համարվում է գնահատված և ցույց է տալիս նույն աստղերը, ոչ թե առանց աստղի «գնահատված»
+        rows = c.execute(f"""SELECT r.review_token AS token, g.name AS garage, g.address AS address, s.name AS service, r.garage_id,
+                                    r.id AS request_id, r.created_at,
+                                    COALESCE(rv.id, dup.id) AS review_id, COALESCE(rv.went, dup.went) AS went,
+                                    COALESCE(rv.rating, dup.rating) AS rating,
+                                    COALESCE(rv.comment, dup.comment) AS comment, COALESCE(rv.display_name, dup.display_name) AS display_name
                              FROM requests r LEFT JOIN garages g ON g.id = r.garage_id
                              LEFT JOIN services s ON s.id = r.service_id
                              LEFT JOIN reviews rv ON rv.request_id = r.id
+                             LEFT JOIN LATERAL (SELECT x.id, x.went, x.rating, x.comment, x.display_name FROM reviews x
+                                                WHERE rv.id IS NULL AND x.garage_id = r.garage_id AND x.went = 1
+                                                  AND x.phone_key = RIGHT(regexp_replace(r.phone, '\\D', '', 'g'), 8)
+                                                  AND x.created_at >= now() - interval '30 days'
+                                                ORDER BY x.created_at DESC LIMIT 1) dup ON TRUE
                              WHERE r.review_token IN ({marks})""", tokens).fetchall()
-    return [{"token": r["token"], "garage": r["garage"], "service": r["service"],
-             "already_reviewed": r["review_id"] is not None, "has_garage": r["garage_id"] is not None} for r in rows]
+    return [{"token": r["token"], "garage": r["garage"], "garage_id": r["garage_id"], "address": r["address"] or "", "service": r["service"],
+             "request_id": r["request_id"], "created_at": r["created_at"],
+             "already_reviewed": r["review_id"] is not None, "has_garage": r["garage_id"] is not None,
+             "went": None if r["review_id"] is None else bool(r["went"]),   # ցուցակը ցույց է տալիս տրված աստղերը
+             "rating": r["rating"], "comment": r["comment"] or "", "display_name": r["display_name"] or ""} for r in rows]

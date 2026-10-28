@@ -1,0 +1,62 @@
+# XcodeGen նախագիծ. macOS-ում՝ `brew install xcodegen && xcodegen generate`, հետո բացել AiAuto.xcodeproj
+name: AI Auto Service
+options:
+  bundleIdPrefix: am.aiauto
+  deploymentTarget:
+    iOS: "15.0"
+  createIntermediateGroups: true
+  xcodeVersion: "15.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    DEVELOPMENT_TEAM: ""   # Apple Developer Team ID-ն այստեղ կամ Xcode-ում (Signing & Capabilities)
+targets:
+  AI Auto Service:
+    type: application
+    platform: iOS
+    sources:
+      - path: AI Auto Service
+      - path: ../app.json
+        buildPhase: resources
+      - path: ../shared/error.html
+        buildPhase: resources
+    info:
+      path: AI Auto Service/Info.plist
+      properties:
+        CFBundleDisplayName: AI Auto
+        CFBundleName: AI Auto Service
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+          UIImageName: LaunchIcon
+          UIImageRespectsSafeAreaInsets: true
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        UIViewControllerBasedStatusBarAppearance: true
+        UIRequiresFullScreen: false
+        UIBackgroundModes: [remote-notification]
+        ITSAppUsesNonExemptEncryption: false
+        NSCameraUsageDescription: "Տեսախցիկը պետք է հայտին լուսանկար կցելու համար։"
+        NSMicrophoneUsageDescription: "Խոսափողը պետք է ձայնային հաղորդագրության համար։"
+        NSPhotoLibraryUsageDescription: "Լուսանկարները պետք են հայտին նկար կցելու համար։"
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true   # Debug. simulator-ից http://localhost:8090 (production-ում միայն https)
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: am.aiauto.app
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        CODE_SIGN_STYLE: Automatic
+        GENERATE_INFOPLIST_FILE: false
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited)"
+        # Push ծանուցումներ (aps-environment). Xcode → Signing & Capabilities-ում «Push Notifications»-ը պետք է միացված լինի App ID-ում
+        CODE_SIGN_ENTITLEMENTS: AI Auto Service/AiAuto.entitlements
+      configs:
+        Debug:
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: "DEBUG $(inherited)"
+    # Universal Links (կայքի հղումները՝ հավելվածում). երբ կայքում կա /.well-known/apple-app-site-association,
+    # AI Auto Service/AiAuto.entitlements-ում ավելացնել com.apple.developer.associated-domains: [applinks:aiauto.am]

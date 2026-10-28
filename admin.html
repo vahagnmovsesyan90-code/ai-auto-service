@@ -4,73 +4,343 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AI Auto Service — Ադմին</title>
-<link rel="manifest" href="/manifest-panel.webmanifest">
-<meta name="theme-color" content="#1d2529">
-<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Գարաժի պանել">
+<meta name="theme-color" content="#FFFFFF">
+<meta name="color-scheme" content="light">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Armenian:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="/static/leaflet/leaflet.css">
 <script src="/static/leaflet/leaflet.js"></script>
 <style>
-:root{--bg:#e9ebec;--panel:#fff;--ink:#1d2529;--mute:#5d6a71;--line:#cfd5d8;--acc:#1f5fbf;--accink:#fff;--bad:#c0392b;--ok:#1b7a4b}
-@media(prefers-color-scheme:dark){:root{--bg:#171c1f;--panel:#222a2e;--ink:#eef1f2;--mute:#9aa7ad;--line:#38434a;--acc:#5b9bff;--accink:#0b1a30;--bad:#ff7b6b;--ok:#4cc58a}}
+/* Դիզայն. բաց ֆոն, սպիտակ կողային նավիգացիա, կանաչ շեշտ (canvas «AI Auto Service — նոր դիզայն», «Ադմին պանել» artboard-ները և «Ոճի ուղեցույց»-ը) */
+:root{--bg:#F4F6F5;--surface:#FFFFFF;--line:#E4E8E6;--line2:#EEF1EF;--line3:#DDE2DF;--ink:#16201B;--ink2:#3C4742;--mute:#5B6660;--dim:#8A948F;--empty:#C9D1CC;
+  --acc:#0E7C53;--acc2:#0B6643;--soft:#E3F5EB;--okdot:#1DA462;--star:#D98E04;--starbg:#FFF4E0;--warnink:#8A5A00;--warnline:#F0C97A;
+  --bad:#B42318;--badbg:#FEF3F2;--badline:#F3C4C4;--blue:#1D4ED8;--bluebg:#E8EEFF;--blueline:#C7D2FE;--mapbg:#E8EDEA;
+  --sh1:0 1px 2px rgba(16,24,40,.04);--sh2:0 8px 24px rgba(16,24,40,.06);
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;--font:Inter,"Noto Sans Armenian",system-ui,-apple-system,"Segoe UI",sans-serif}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Noto Sans Armenian","Segoe UI",system-ui,sans-serif}
+[hidden]{display:none!important}
 .hide{display:none!important}
-header{display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding:12px 20px;background:var(--ink);color:var(--bg)}
-header b{border-left:6px solid #f2b705;padding-left:10px;margin-right:8px}
-header nav{display:flex;gap:4px;flex:1;flex-wrap:wrap}
-header button{font:inherit;cursor:pointer;color:inherit;background:transparent;border:0;padding:6px 12px;border-radius:6px;opacity:.75}
-header button.on{background:#f2b705;color:#1d2529;opacity:1;font-weight:600}
-main{padding:20px;max-width:980px;margin:0 auto}
-h2{margin:0 0 4px;font-size:20px}.sub{color:var(--mute);margin:0 0 16px}
-.box{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:16px}
-.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-input,select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;min-width:0}
-input[type=number]{width:110px}input[type=time]{width:140px}input[type=checkbox]{width:18px;height:18px}
-.btn{font:inherit;cursor:pointer;background:var(--acc);color:var(--accink);border:0;border-radius:6px;padding:8px 14px;font-weight:600}
-.btn.g{background:transparent;color:var(--ink);border:1px solid var(--line)}
-.btn.danger{background:var(--bad);color:#fff;border-color:var(--bad)}
-.tbl{overflow-x:auto}table{border-collapse:collapse;width:100%}
-th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);vertical-align:middle}th{color:var(--mute);font-size:13px;font-weight:600}
-.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
-.chip{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:20px;padding:6px 14px}
-.chip.on{background:var(--acc);color:var(--accink);border-color:var(--acc)}
-.badge{font-size:12px;padding:2px 10px;border-radius:10px;background:#f2b705;color:#1d2529}.badge.done{background:var(--line);color:var(--mute)}
-.note{font-size:13px;color:var(--mute)}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px}
-.card b{display:block;font-size:26px;line-height:1.2}.card span{font-size:13px;color:var(--mute)}
-td select{max-width:190px}
-@media(max-width:700px){header{padding:10px 14px}header nav{order:3;flex:1 1 100%}main{padding:14px}}
-#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:8px;opacity:0;pointer-events:none;transition:opacity .2s}
-#toast.show{opacity:1}#toast.err{background:var(--bad);color:#fff}
-#login{max-width:340px;margin:12vh auto;padding:0 20px}
+html{height:100%}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font:14px/1.5 var(--font);-webkit-font-smoothing:antialiased}
+a{color:var(--acc);text-decoration:none}a:hover{color:var(--acc2)}
+button,input,select,textarea{font:inherit;color:inherit}
+input::placeholder{color:var(--dim)}
+.ico{width:18px;height:18px;flex:none}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 :focus-visible{outline:2px solid var(--acc);outline-offset:2px}
-.map{height:320px;border-radius:8px;border:1px solid var(--line);margin-top:10px}
-.pin{width:22px;height:22px;border-radius:50% 50% 50% 0;background:#c0392b;border:2px solid #fff;transform:rotate(-45deg);box-shadow:0 1px 4px #0006}
-.warn{color:var(--bad)}
+.num{font-variant-numeric:tabular-nums}
+
+/* ---- մուտք ---- */
+#login{min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:40px 24px}
+#login .lbox{width:100%;max-width:440px;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:32px;display:flex;flex-direction:column;gap:20px;box-shadow:var(--sh2)}
+#login h1{margin:0;font-size:28px;line-height:1.2;font-weight:700;letter-spacing:-.02em}
+#login .lead{margin:8px 0 0}
+#login .back{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--mute)}#login .back:hover{color:var(--ink)}
+#login .back .ico{width:14px;height:14px}
+.ver{font-size:12px;color:var(--dim)}
+.pwwrap{display:flex;align-items:center;height:46px;padding:0 6px 0 14px;border-radius:12px;border:1px solid var(--line3);background:var(--surface);transition:border-color .15s,box-shadow .15s}
+.pwwrap:focus-within{border-color:var(--acc);box-shadow:0 0 0 3px var(--soft)}
+#login .pwwrap input{flex:1 1 auto;min-width:0;height:100%;border:0;border-radius:0;box-shadow:none;outline:0;background:transparent;font-size:15px;padding:0}
+.pwwrap .eye{width:36px;height:36px;border:0;border-radius:8px;background:transparent;color:var(--mute);cursor:pointer;display:grid;place-items:center}
+.pwwrap .eye:hover{background:var(--bg);color:var(--ink)}
+
+/* ---- բրենդ ---- */
+.brand{display:flex;align-items:center;gap:10px;color:var(--ink);min-width:0}
+.logo{width:36px;height:36px;border-radius:10px;background:var(--acc);color:#fff;display:grid;place-items:center;flex:none}
+.logo svg{width:18px;height:18px}
+#login .logo{width:40px;height:40px;border-radius:12px}#login .logo svg{width:20px;height:20px}
+.brand .ttl{display:flex;flex-direction:column;gap:1px;min-width:0}
+.brand b{font-size:14px;font-weight:700;letter-spacing:-.01em;white-space:nowrap}
+#login .brand b{font-size:15px}
+.brand .sub2{font-size:12px;color:var(--mute);white-space:nowrap}
+
+/* ---- կարկաս ---- */
+#app{min-height:100dvh;display:flex;align-items:stretch}
+aside{flex:none;width:280px;display:flex;flex-direction:column;gap:6px;padding:20px 12px;padding-top:max(20px,env(safe-area-inset-top));background:var(--surface);border-right:1px solid var(--line);position:sticky;top:0;height:100dvh;overflow-y:auto}
+aside .brand{padding:6px 10px 18px}
+nav#tabs{display:flex;flex-direction:column;gap:2px}
+.nav{display:flex;align-items:center;gap:10px;width:100%;height:40px;padding:0 10px;border-radius:10px;border:0;background:transparent;color:var(--ink2);font-size:14px;font-weight:500;text-align:left;cursor:pointer;white-space:nowrap;transition:background .15s,color .15s}
+.nav:hover{background:var(--bg);color:var(--ink)}
+.nav.on{background:var(--soft);color:var(--acc);font-weight:600}
+.nav .lbl{flex:1}
+.nbadge{min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--acc);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.side-foot{margin-top:auto;display:flex;align-items:center;gap:10px;padding:10px;border-top:1px solid var(--line2)}
+.avatar{width:32px;height:32px;border-radius:50%;background:var(--line2);color:var(--ink2);display:grid;place-items:center;font-size:13px;font-weight:700;flex:none}
+.side-foot .me{flex:1 1 auto;display:flex;flex-direction:column;min-width:0}
+.side-foot .me b{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.side-foot .ver{font-size:11px}
+.iconbtn{width:36px;height:36px;border-radius:8px;border:0;background:transparent;color:var(--mute);cursor:pointer;display:grid;place-items:center;flex:none}
+.iconbtn:hover{background:var(--bg);color:var(--ink)}
+main{flex:1;min-width:0;padding:32px clamp(16px,3vw,40px) 48px;display:flex;flex-direction:column;gap:20px}
+
+/* ---- էջի գլուխ ---- */
+.ph{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px}
+.ph>div:first-child{display:flex;flex-direction:column;gap:6px;max-width:680px}
+h2{margin:0;font-size:28px;line-height:1.2;font-weight:700;letter-spacing:-.02em}
+.sub{margin:0;font-size:14px;line-height:1.5;color:var(--mute);text-wrap:pretty}
+h3{margin:0;font-size:16px;font-weight:600}
+.crumbs{display:flex;align-items:center;gap:8px;font-size:14px;min-width:0}
+.crumbs .sep{color:var(--empty);flex:none}
+.crumbs b{color:var(--ink2);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.search{display:flex;align-items:center;gap:10px;height:42px;padding:0 14px;border-radius:12px;background:var(--surface);border:1px solid var(--line3);width:300px;max-width:100%;transition:border-color .15s,box-shadow .15s}
+.search:focus-within{border-color:var(--acc);box-shadow:0 0 0 3px var(--soft)}
+.search .ico{width:16px;height:16px;color:var(--mute)}
+.search input{flex:1 1 auto;min-width:0;border:0;outline:0;background:transparent;font-size:14px;padding:0;height:100%}
+.search input::-webkit-search-cancel-button{-webkit-appearance:none}
+
+/* ---- քարտեր ---- */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--sh1);min-width:0}
+.card.pad{padding:20px 24px;display:flex;flex-direction:column;gap:14px}
+.ch{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 20px;border-bottom:1px solid var(--line2);flex-wrap:wrap}
+.cf{padding:12px 20px;border-top:1px solid var(--line2);font-size:12px;color:var(--dim);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.cf p{margin:0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(180px,100%),1fr));gap:14px}
+.card.stat{border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:8px}
+.card.stat span{font-size:12px;font-weight:500;color:var(--mute);line-height:1.4}
+.card.stat b{font-size:28px;font-weight:700;letter-spacing:-.02em;line-height:1.1;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.card.stat b.ok{color:var(--acc)}.card.stat b.warn{color:var(--warnink)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(360px,100%),1fr));gap:16px}
+.stack{display:flex;flex-direction:column;gap:20px}
+.grid2.wide{grid-template-columns:repeat(auto-fit,minmax(min(420px,100%),1fr));gap:20px;align-items:start}
+.hl{display:flex;gap:14px;align-items:flex-start;padding:16px 18px;border-radius:16px;background:var(--soft);border:1px solid color-mix(in oklab,var(--acc) 25%,white)}
+.hl>div,.tgl>div{display:flex;flex-direction:column;gap:4px;min-width:0}
+.hl b,.tgbox b{font-size:14px;font-weight:600}
+.hl .note{color:var(--ink2)}
+.ic{flex:0 0 36px;width:36px;height:36px;border-radius:10px;background:var(--acc);color:#fff;display:grid;place-items:center}
+.ic.g{background:var(--line2);color:var(--ink2)}
+.ic.on{background:var(--soft);color:var(--acc)}
+.ic svg{width:18px;height:18px}
+.tgbox{display:flex;gap:14px;align-items:flex-start;padding:16px 18px;border-radius:16px;background:var(--surface);border:1px solid var(--line);flex-wrap:wrap}
+.tgbox .tgl{display:flex;gap:14px;align-items:flex-start;flex:1 1 240px;min-width:0}
+.tgbox .row{flex:none;align-self:center}
+.tgbox .tginfo{flex-basis:100%;padding:10px 14px;border-radius:10px;background:var(--bg)}
+.tginfo:empty{display:none}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.note{font-size:13px;line-height:1.5;color:var(--mute)}
+.fine{font-size:12px;line-height:1.5;color:var(--dim)}
+.warn{color:var(--warnink)}
+.okmsg{padding:10px 14px;border-radius:10px;background:var(--soft);color:var(--acc2);font-size:13px;line-height:1.5;font-weight:500}
+.warnmsg{padding:10px 14px;border-radius:10px;background:var(--starbg);color:var(--warnink);font-size:13px;line-height:1.5;font-weight:500}
+.warnmsg.big{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:14px;border:1px solid var(--warnline);font-size:14px;font-weight:400}
+.warnmsg.big .ico{color:var(--star);margin-top:1px}
+.warnmsg.big b{font-weight:600}
+code{font-family:var(--mono);font-size:12px;background:var(--bg);padding:1px 6px;border-radius:6px}
+
+/* ---- դաշտեր ---- */
+.lbl{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600;color:var(--ink2);min-width:0}
+.lbl .fine{font-weight:400}
+input,select{color:var(--ink);background:var(--surface);border:1px solid var(--line3);border-radius:10px;height:42px;padding:0 12px;min-width:0;width:100%;font-size:14px;font-weight:400;transition:border-color .15s,box-shadow .15s}
+input:focus,select:focus{outline:none;border-color:var(--acc);box-shadow:0 0 0 3px var(--soft)}
+#login input{height:46px;border-radius:12px;padding:0 14px;font-size:15px}
+select{cursor:pointer;appearance:none;-webkit-appearance:none;padding-right:34px;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235B6660' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");background-repeat:no-repeat;background-position:right 12px center;background-size:16px 16px}
+input[type=number]{width:88px;height:36px;padding:0 10px;border-radius:8px;font-variant-numeric:tabular-nums}
+input[type=time]{width:auto;height:36px;padding:0 10px;border-radius:8px}
+input[type=month]{width:auto;height:40px;font-weight:600;border:0;border-left:1px solid var(--line2);border-right:1px solid var(--line2);border-radius:0;background:transparent}
+input[type=month]:focus{box-shadow:none}
+input[type=checkbox]{width:18px;height:18px;accent-color:var(--acc);cursor:pointer;padding:0;height:18px}
+input:disabled{background:#F9FAF9;border-color:var(--line2);color:var(--dim)}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr));gap:14px}
+.monthpick{display:flex;align-items:center;gap:8px}
+.monthpick>label{font-size:13px;font-weight:600;color:var(--ink2)}
+.monthpick .mp{display:flex;align-items:center;border:1px solid var(--line3);border-radius:10px;background:var(--surface);overflow:hidden}
+.monthpick .mp button{width:40px;height:40px;border:0;background:transparent;color:var(--mute);cursor:pointer;display:grid;place-items:center}
+.monthpick .mp button:hover{background:var(--bg);color:var(--ink)}
+
+/* ---- կոճակներ ---- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:40px;padding:0 14px;border-radius:10px;border:1px solid var(--line3);background:var(--surface);color:var(--ink);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;text-decoration:none;transition:background .15s,border-color .15s,color .15s}
+.btn:hover{background:var(--bg);color:var(--ink)}
+.btn.primary{background:var(--acc);border-color:var(--acc);color:#fff;font-size:14px;padding:0 18px}.btn.primary:hover{background:var(--acc2);border-color:var(--acc2);color:#fff}
+.btn.big{height:48px;border-radius:12px;font-size:15px}
+.btn.sm{height:34px;padding:0 12px;border-radius:8px}
+.btn.danger{border-color:var(--badline);color:var(--bad)}.btn.danger:hover{background:var(--badbg);color:var(--bad)}
+.btn.danger[data-arm]{background:var(--bad);border-color:var(--bad);color:#fff}
+.btn:disabled{opacity:.5;cursor:default}
+.btn .ico{width:16px;height:16px}
+
+/* ---- պիտակներ ---- */
+.pill{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;background:var(--bg);color:var(--ink2);width:fit-content}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
+.pill.ok{background:var(--soft);color:var(--acc2)}.pill.ok::before{background:var(--okdot)}
+.pill.warn{background:var(--starbg);color:var(--warnink)}.pill.warn::before{background:var(--star)}
+.pill.bad{background:var(--badbg);color:var(--bad)}.pill.bad::before{background:var(--bad)}
+.pill.plain::before{display:none}
+.fchips{display:flex;gap:8px;flex-wrap:wrap}
+.fchip{height:36px;padding:0 14px;border-radius:999px;border:1px solid var(--line3);background:var(--surface);color:var(--ink2);font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;transition:background .15s,color .15s}
+.fchip:hover{background:var(--bg)}
+.fchip.on{border-color:var(--acc);background:var(--soft);color:var(--acc);font-weight:600}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{height:36px;padding:0 14px;border-radius:999px;border:1px solid var(--line3);background:var(--surface);color:var(--ink2);font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;transition:background .15s,color .15s}
+.chip:hover{background:var(--bg)}
+.chip.on{border-color:var(--acc);background:var(--soft);color:var(--acc);font-weight:600}
+.chip.add{border-style:dashed;color:var(--acc);font-weight:600}.chip.add:hover{border-color:var(--acc);background:var(--soft)}
+
+/* ---- աղյուսակներ ---- */
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th{text-align:left;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);padding:12px 16px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--line2);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+tr.new td{background:var(--soft)}
+tr.dim{color:var(--dim)}tr.dim strong{color:var(--mute)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+td .d{display:flex;flex-direction:column;gap:2px;white-space:nowrap}td .d small{font-size:12px;color:var(--mute)}
+td .two{display:flex;flex-direction:column;gap:2px}td .two small{font-size:12px;color:var(--mute)}
+td a.tel{display:inline-flex;align-items:center;gap:6px;font-weight:600;white-space:nowrap}
+td select{width:200px;max-width:100%;height:36px;padding:0 34px 0 12px;font-size:13px;font-weight:500;border-radius:10px}
+td select.unassigned{border-color:var(--warnline);background-color:var(--starbg);color:var(--warnink)}
+td .cnt{padding:2px 8px;border-radius:999px;font-weight:600;font-size:12px}
+.cnt.acc{background:var(--soft);color:var(--acc)}.cnt.warn{background:var(--starbg);color:var(--warnink)}
+/* փուլեր՝ գունավոր պիտակ-select. Նոր — շեշտ, Զանգ — կապույտ, Չպատ. — դեղին, Ժամ/Այց — կանաչ, Հրաժ. — կարմիր */
+select.st{font-weight:600}
+select.st-new{border-color:var(--acc);color:var(--acc);background-color:var(--surface)}
+select.st-called{border-color:var(--blueline);color:var(--blue);background-color:var(--bluebg)}
+select.st-no_answer{border-color:var(--warnline);color:var(--warnink);background-color:var(--starbg)}
+select.st-booked,select.st-visited{border-color:#BFE3CF;color:var(--acc2);background-color:var(--soft)}
+select.st-declined{border-color:var(--badline);color:var(--bad);background-color:var(--badbg)}
+select option{background:var(--surface);color:var(--ink);font-weight:400}
+
+/* ---- գարաժների ցանկ ---- */
+.toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.toolbar .search{flex:1 1 320px;max-width:460px;width:auto;height:44px}
+.toolbar select{width:auto;height:40px;font-size:13px}
+.avatar.sq{border-radius:9px;width:34px;height:34px;font-size:13px}
+.avatar.acc{background:var(--soft);color:var(--acc)}
+a.gname{display:flex;align-items:center;gap:10px;color:var(--ink)}a.gname:hover{color:var(--acc)}
+.stars.one{display:inline-flex;vertical-align:-2px;margin-right:4px}.stars.one svg{width:13px;height:13px}
+.haslogin{display:inline-flex;align-items:center;gap:5px;color:var(--acc2);font-size:13px;font-weight:600}
+.glist table{min-width:900px}
+.gcards{display:none;flex-direction:column;gap:10px}
+.gcard{display:flex;align-items:center;gap:12px;padding:14px;background:var(--surface);border:1px solid var(--line);border-radius:16px;color:var(--ink);text-align:left;cursor:pointer;width:100%;font:inherit}
+.gcard .avatar.sq{width:42px;height:42px;border-radius:12px;font-size:16px}
+.gcard .gc-body{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:3px}
+.gcard .gc-body strong{font-size:15px;font-weight:600}.gcard .gc-body .note{font-size:12px}
+.gcard>svg{color:var(--dim)}
+.search.sm{height:34px;padding:0 10px;border-radius:8px;width:200px;gap:8px}.search.sm input{font-size:13px}
+.crumbs a{color:var(--mute);font-weight:400;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.crumbs a:hover{color:var(--acc2)}
+.crumbs a.home{flex:none;width:32px;height:32px;margin-left:-6px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--acc)}.crumbs a.home:hover{background:var(--soft);color:var(--acc)}.crumbs a.home .ico{width:18px;height:18px}
+tr.today td{background:var(--soft)}tr.today strong{color:var(--acc)}
+/* ---- գարաժի էջ ---- */
+.ghead{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+.ghead .gl{display:flex;align-items:center;gap:14px;min-width:0}
+.gavatar{width:52px;height:52px;border-radius:14px;background:var(--soft);color:var(--acc);font-size:20px;font-weight:700;display:grid;place-items:center;flex:none}
+.ghead h3{font-size:26px;font-weight:700;letter-spacing:-.02em;line-height:1.2}
+.ghead .meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--mute);margin-top:4px}
+.gtbl th,.gtbl td{padding:10px 12px}.gtbl th:first-child{padding-left:16px}.gtbl td:first-child{padding-left:16px}
+.gtbl th.chk{width:1%}
+.loginrow{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;background:var(--bg);font-size:13px;color:var(--mute)}
+.loginrow b{font-family:var(--mono);color:var(--ink);font-weight:600}
+.map{height:300px;border-radius:12px;border:1px solid var(--line3);overflow:hidden;background:var(--mapbg);display:grid;place-items:center;color:var(--mute);font-size:13px}
+.pin{width:22px;height:22px;border-radius:50% 50% 50% 0;background:var(--acc);border:2px solid #fff;transform:rotate(-45deg);box-shadow:0 2px 6px rgba(16,24,40,.3)}
+.leaflet-container{font:inherit}
+.leaflet-control-attribution{background:rgba(255,255,255,.85)!important;color:var(--mute)!important;font-size:10px!important}
+.leaflet-control-attribution a{color:var(--acc)!important}
+.leaflet-bar a{color:var(--ink)!important}
+
+/* ---- հաշվետվություն ---- */
+.bars{display:flex;flex-direction:column;gap:12px}
+.bar{display:grid;grid-template-columns:minmax(0,200px) minmax(0,1fr) 96px;align-items:center;gap:14px;font-size:14px}
+.track{height:10px;border-radius:999px;background:var(--line2);overflow:hidden}
+.fill{height:100%;border-radius:999px;background:var(--acc)}
+.bar .num{text-align:right;color:var(--mute);white-space:nowrap;font-size:13px}
+
+/* ---- կարծիքներ ---- */
+.revs{display:flex;flex-direction:column;gap:12px}
+.rev{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start;justify-content:space-between;padding:18px 22px;border-radius:16px;border:1px solid var(--line);background:var(--surface);box-shadow:var(--sh1)}
+.rev.off{border-style:dashed;background:transparent;box-shadow:none}
+.rev.off .body{opacity:.65}
+.rev .body{flex:1 1 360px;min-width:0;display:flex;flex-direction:column;gap:10px}
+.rev .body p{margin:0;font-size:14px;line-height:1.55;color:var(--ink2)}
+.rev .top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.rev .top b{font-size:15px;font-weight:600}
+.rev .top span{font-size:13px;color:var(--mute)}
+.rev .meta{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:13px;color:var(--mute)}
+.rev .meta a{font-weight:600}
+.rev .acts{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.rev .acts select{width:auto;height:38px}
+.stars{display:inline-flex;gap:1px;color:var(--star)}
+.stars svg{width:16px;height:16px;fill:currentColor}
+.stars svg.o{color:var(--empty)}
+.emptybox{display:flex;flex-direction:column;align-items:center;gap:8px;padding:36px 20px;border-radius:16px;border:1px dashed #D5DBD8;text-align:center}
+.emptybox .stars{color:var(--empty)}
+.emptybox b{font-size:14px;font-weight:500;color:var(--ink2)}
+.emptybox span{font-size:13px;color:var(--mute)}
+
+/* ---- այլ ---- */
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 20px;border-radius:12px;font-weight:600;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:1000;max-width:calc(100vw - 32px);text-align:center;box-shadow:var(--sh2)}
+#toast.show{opacity:1}#toast.err{background:var(--bad)}
+
+/* ---- բջջային. նավիգացիան ներքևի ներդիրներ է (MA- artboard-ներ) ---- */
+@media(max-width:800px){
+  #app{flex-direction:column}
+  aside{width:100%;height:auto;position:sticky;top:0;z-index:5;flex-direction:row;align-items:center;gap:10px;padding:10px 16px;padding-top:max(10px,env(safe-area-inset-top));border-right:0;border-bottom:1px solid var(--line);overflow:visible}
+  aside .brand{flex:1;padding:0}
+  .brand .sub2{display:none}
+  .side-foot{margin:0;padding:0;border:0;gap:8px}
+  .side-foot .me{display:none}
+  .side-foot .iconbtn{border:1px solid var(--line);border-radius:10px;width:40px;height:40px}
+  nav#tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;flex-direction:row;gap:0;background:var(--surface);border-top:1px solid var(--line);padding:8px 4px max(8px,env(safe-area-inset-bottom))}
+  .nav{flex:1 1 0;flex-direction:column;justify-content:center;gap:4px;height:auto;padding:6px 0;border-radius:12px;font-size:10px;font-weight:500;background:transparent;min-width:0}
+  .nav:hover,.nav.on{background:transparent}
+  .nav .ico{width:44px;height:28px;border-radius:999px;padding:5px 0}
+  .nav.on .ico{background:var(--soft)}
+  .nav .lbl{display:none}
+  .nav::after{content:attr(data-short);max-width:100%;overflow:hidden;text-overflow:ellipsis}
+  .nbadge{position:absolute;margin-left:28px;margin-top:-38px;min-width:18px;height:18px;font-size:10px}
+  body{padding-bottom:76px}
+  main{padding:16px 16px 32px;gap:16px}
+  h2{font-size:22px}
+  .ghead h3{font-size:20px}
+  .gavatar{width:42px;height:42px;font-size:16px;border-radius:12px}
+  .card.pad{padding:16px}
+  .ch,.cf{padding:12px 16px}
+  th,td{padding:10px 12px}
+  .rev{padding:16px}
+  .bar{grid-template-columns:minmax(0,1fr) 72px;row-gap:6px}
+  .bar .track{grid-column:1/-1}
+  .map{height:220px}
+  .search{width:100%}
+  .glist{display:none}.gcards{display:flex}
+  .stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .card.stat{padding:12px 14px}.card.stat b{font-size:22px}
+  .toolbar .search{max-width:none}
+  .search.sm{width:100%}
+}
 </style>
 </head>
 <body>
 <div id="login" class="hide">
-  <div class="box"><h2>Մուտք</h2><p class="sub">Գարաժի սեփականատերը մուտքագրում է իր մուտքանունը։ Գլխավոր ադմինը թողնում է այն դատարկ։</p>
-  <div class="row" style="flex-direction:column;align-items:stretch">
-  <input id="lg" placeholder="Մուտքանուն (գլխավոր ադմինի համար՝ դատարկ)" autocomplete="username">
-  <input id="pw" type="password" placeholder="Գաղտնաբառ" autocomplete="current-password">
-  <button class="btn" id="go">Մուտք</button></div></div>
+  <form class="lbox" id="lform">
+    <div class="brand"><span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span><span class="ttl"><b>AI Auto Service</b><span class="sub2">Ադմին պանել</span></span></div>
+    <div><h1>Մուտք</h1><p class="sub lead">Գարաժի սեփականատերը մուտք է գործում իր մուտքանունով։ Գլխավոր ադմինը թողնում է այն դատարկ։</p></div>
+    <label class="lbl">Մուտքանուն<input id="lg" placeholder="Գլխավոր ադմինի համար՝ դատարկ" autocomplete="username"></label>
+    <label class="lbl">Գաղտնաբառ<span class="pwwrap"><input id="pw" type="password" placeholder="••••••••" autocomplete="current-password"><button type="button" class="eye" id="pwEye" aria-label="Ցույց տալ գաղտնաբառը"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button></span></label>
+    <button class="btn primary big" id="go">Մուտք <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7"/></svg></button>
+  </form>
+  <a href="/" class="back"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>Վերադառնալ կայք</a>
+  <span class="ver">v__APP_VERSION__</span>
 </div>
 <div id="app" class="hide">
-  <header><b>AI Auto Service</b>
-    <nav id="tabs"><button data-t="requests">Հայտեր</button><button data-t="garages" id="tabG">Գարաժներ</button><button data-t="report">Հաշվետվություն</button><button data-t="reviews">Կարծիքներ</button><button data-t="catalog" id="tabC">Կատալոգ</button></nav>
-    <span id="who" class="note" style="color:inherit;opacity:.7"></span><button id="install" hidden style="border:1px solid #f2b705;opacity:1">Տեղադրել հավելվածը</button><button id="out">Դուրս գալ</button></header>
+  <aside>
+    <div class="brand"><span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span><span class="ttl"><b>AI Auto Service</b><span class="sub2">Ադմին պանել</span></span></div>
+    <nav id="tabs" aria-label="Պանելի բաժիններ">
+      <button class="nav" data-t="requests" data-short="Հայտեր"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-7A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.7 1z"/></svg><span class="lbl">Հայտեր</span><span class="nbadge" id="nbadge" hidden></span></button>
+      <button class="nav" data-t="garages" id="tabG" data-short="Գարաժներ"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21V8l9-5 9 5v13"/><path d="M7 21v-8h10v8"/><path d="M7 17h10"/></svg><span class="lbl">Գարաժներ</span></button>
+      <button class="nav" data-t="report" data-short="Հաշվետվ."><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 14v4M12 9v9M17 12v6"/></svg><span class="lbl">Հաշվետվություն</span></button>
+      <button class="nav" data-t="reviews" data-short="Կարծիքներ"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3 6.1 20.6l1.3-6.6L2.5 9.4l6.6-.8z"/></svg><span class="lbl">Կարծիքներ</span></button>
+      <button class="nav" data-t="apps" data-short="Հավելված"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg><span class="lbl">Հավելվածներ</span></button>
+      <button class="nav" data-t="catalog" id="tabC" data-short="Կատալոգ"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg><span class="lbl">Կատալոգ</span></button>
+    </nav>
+    <div class="side-foot">
+      <span class="avatar" id="avi" aria-hidden="true">Ա</span>
+      <span class="me"><b id="who"></b></span>
+      <button class="iconbtn" id="out" aria-label="Դուրս գալ" title="Դուրս գալ"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg></button>
+    </div>
+  </aside>
   <main id="main"></main>
 </div>
 <div id="toast" role="status"></div>
-<div style="text-align:center;font-size:11px;color:var(--mute);padding:20px 0">v__APP_VERSION__</div>
 <script>
 const DAYS=["Երկուշաբթի","Երեքշաբթի","Չորեքշաբթի","Հինգշաբթի","Ուրբաթ","Շաբաթ","Կիրակի"];
-let token=sessionStorage.getItem("tok")||"",D=null,tab="requests",gsel=null;
+let token=sessionStorage.getItem("tok")||"",D=null,tab="requests",gsel=null,rf="all";
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 let tt;function toast(m,err){const t=$("#toast");t.textContent=m;t.className="show"+(err?" err":"");clearTimeout(tt);tt=setTimeout(()=>t.className="",2600)}
@@ -87,110 +357,240 @@ function armed(btn,label){ // ջնջման երկքայլ հաստատում
   btn.dataset.arm=1;btn.textContent="Հաստատել ջնջումը";btn.classList.add("danger");
   setTimeout(()=>{if(btn.isConnected){delete btn.dataset.arm;btn.textContent=label;btn.classList.remove("danger")}},4000);return false;
 }
-function logout(){clearInterval(pollT);token="";sessionStorage.removeItem("tok");$("#app").classList.add("hide");$("#login").classList.remove("hide");$("#pw").focus()}
+function logout(){clearInterval(pollT);token="";sessionStorage.removeItem("tok");history.replaceState(null,"",BASE); // դուրս գալիս հասցեն մաքրվում է. հաջորդ մուտքը՝ «Հայտեր»-ից
+  $("#app").classList.add("hide");$("#login").classList.remove("hide");$("#pw").focus()}
 async function login(){
   try{const d=await api("POST","/login",{login:$("#lg").value.trim(),password:$("#pw").value},false);token=d.token;sessionStorage.setItem("tok",token);$("#pw").value="";await start()}catch(e){}
 }
 const isAdmin=()=>D&&D.role==="admin";
+// ---- URL-ներ. /panel/requests, /panel/garages, /panel/garages/<id>, /panel/report, /panel/reviews, /panel/apps, /panel/catalog ----
+const BASE="/panel",TABS=["requests","garages","report","reviews","apps","catalog"];
+function route(){ // հասցե → վիճակ (բացելիս, Back/Forward-ին)
+  const [t,id]=location.pathname.slice(BASE.length).split("/").filter(Boolean);
+  if(!TABS.includes(t)||(t==="catalog"&&!isAdmin())){tab="requests";return}
+  tab=t;if(t==="garages")gsel=isAdmin()?(id?+id:null):(D.garages[0]?.id??null);
+}
+const pathFor=()=>BASE+"/"+tab+(tab==="garages"&&isAdmin()&&gsel!=null?"/"+gsel:"");
+function nav(t,id){ // ներդիր/գարաժ բացել. վիճակը, հասցեն պատմության մեջ, հետո նկարելը (render-ը replaceState է անում)
+  tab=t;if(t==="garages")gsel=isAdmin()?(id??null):(D.garages[0]?.id??null);
+  const h=pathFor();if(location.pathname!==h)history.pushState(null,"",h);
+  render();window.scrollTo(0,0);
+}
+window.addEventListener("popstate",()=>{if(!D)return;route();render()});
 async function start(){
   $("#login").classList.add("hide");$("#app").classList.remove("hide");await refresh();
-  tab="requests";gsel=D.garages[0]?.id??null;
+  rf="all";gq="";gf="all";gsort="name";route();
   $("#tabC").classList.toggle("hide",!isAdmin());
-  $("#tabG").textContent=isAdmin()?"Գարաժներ":"Իմ գարաժը";
-  $("#who").textContent=isAdmin()?"Գլխավոր ադմին":(D.garages[0]?.name||"");
+  $("#tabG").querySelector(".lbl").textContent=isAdmin()?"Գարաժներ":"Իմ գարաժը";$("#tabG").dataset.short=isAdmin()?"Գարաժներ":"Իմ գարաժը";
+  const who=isAdmin()?"Գլխավոր ադմին":(D.garages[0]?.name||"");
+  $("#who").textContent=who;$("#avi").textContent=(who.trim()[0]||"Ա").toUpperCase();
   render();
 }
 
-function fmtDate(s){return new Date(s.replace(" ","T")+"Z").toLocaleString("en-GB",{timeZone:"Asia/Yerevan",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",hour12:false})}
+function fmtDate(s){return new Date(s.replace(" ","T")+"Z").toLocaleString("en-GB",{timeZone:"Asia/Yerevan",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",hour12:false}).replace(/\//g,".")}
+function fmtD(s){const [d,t]=fmtDate(s).split(", ");return `<span class="d num"><strong>${d}</strong><small>${t||""}</small></span>`}
+const ICO={
+  home:`<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>`,
+  tg:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 4L3 11l6 2 2 6 3-4 5 4z"/></svg>`,
+  bell:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></svg>`,
+  phone:`<svg class="ico" style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.9 2z"/></svg>`,
+  star:`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3 6.1 20.6l1.3-6.6L2.5 9.4l6.6-.8z"/></svg>`,
+  search:`<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>`,
+  prev:`<svg class="ico" style="width:16px;height:16px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>`,
+  next:`<svg class="ico" style="width:16px;height:16px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>`,
+  plus:`<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>`,
+  warn:`<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l10 18H2zM12 10v5M12 18h.01"/></svg>`,
+  ext:`<svg class="ico" style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14 21 3"/></svg>`,
+  eyeoff:`<svg class="ico" style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.9 17.9A10 10 0 0 1 12 19c-6.5 0-10-7-10-7a18 18 0 0 1 5.1-5.9M9.9 4.2A9 9 0 0 1 12 4c6.5 0 10 7 10 7a18 18 0 0 1-2.2 3.2M14.1 14.1a3 3 0 1 1-4.2-4.2M1 1l22 22"/></svg>`
+};
 function tgBox(who,linked){
-  if(!D.telegram.enabled)return `<div class="box"><b>Telegram ծանուցումներ</b><p class="note">Telegram-ը դեռ կարգավորված չէ. գլխավոր ադմինը պետք է ավելացնի TELEGRAM_BOT_TOKEN։</p></div>`;
-  return `<div class="box"><b>Telegram ծանուցումներ</b>
-  <p class="note">${linked?"✓ Միացված է. նոր հայտերը կգան Telegram-ով։":"Միացված չէ. նոր հայտերի մասին կիմանաք միայն այս պանելից։"}</p>
-  <div class="row"><button class="btn" data-tglink="${who}">${linked?"Միացնել այլ Telegram":"Միացնել Telegram"}</button>${linked?`<button class="btn g" data-tgunlink="${who}">Անջատել</button>`:""}</div>
-  <div id="tgInfo-${who}" class="note" style="margin-top:10px"></div></div>`;
+  if(!D.telegram.enabled)return `<section class="tgbox"><div class="tgl"><span class="ic g">${ICO.tg}</span><div><b>Telegram ծանուցումներ</b><span class="note">Telegram-ը դեռ կարգավորված չէ. գլխավոր ադմինը պետք է ավելացնի <code>TELEGRAM_BOT_TOKEN</code>։</span></div></div></section>`;
+  return `<section class="tgbox"><div class="tgl"><span class="ic ${linked?"on":"g"}">${ICO.tg}</span><div><b>Telegram ծանուցումներ</b>
+  <span class="note">${linked?"✓ Միացված է. նոր հայտերը կգան Telegram-ով։":"Միացված չէ. նոր հայտերի մասին կիմանաք միայն այս պանելից։"}</span></div></div>
+  <div class="row"><button class="btn ${linked?"":"primary"}" data-tglink="${who}">${linked?"Միացնել այլ Telegram":"Միացնել"}</button>${linked?`<button class="btn" data-tgunlink="${who}">Անջատել</button>`:""}</div>
+  <div id="tgInfo-${who}" class="note tginfo"></div></section>`;
 }
 const STAGES={new:"Նոր",called:"Զանգահարվել է",no_answer:"Չպատասխանեց",booked:"Ժամ պայմանավորվեց",visited:"Այցելեց",declined:"Հրաժարվեց"};
 const REASONS={price:"Թանկ է",far:"Հեռու է",other_garage:"Գնաց այլ գարաժ",no_time:"Ժամը չհամապատասխանեց",changed_mind:"Այլևս պետք չէ",other:"Այլ պատճառ"};
 const optsOf=(o,sel)=>Object.entries(o).map(([k,v])=>`<option value="${k}" ${k===sel?"selected":""}>${v}</option>`).join("");
 function requestsView(){
-  const n=D.requests.filter(r=>r.status==="new").length,adm=isAdmin();
+  const adm=isAdmin(),cnt={};D.requests.forEach(r=>cnt[r.status]=(cnt[r.status]||0)+1);const n=cnt.new||0;
+  if(rf!=="all"&&!cnt[rf])rf="all";
+  const list=rf==="all"?D.requests:D.requests.filter(r=>r.status===rf);
   const gopts=r=>`<option value="">— նշանակված չէ —</option>`+D.garages.map(g=>`<option value="${g.id}" ${g.id===r.garage_id?"selected":""}>${esc(g.name)}</option>`).join("");
-  return `<h2>Հայտեր</h2><p class="sub">Նոր հայտեր՝ ${n}։ Զանգահարեք վարորդին և թարմացրեք փուլը. այսպես հաշվետվությունը ցույց կտա, թե քանի հայտ է հասել այցի։${adm?" Առանց գարաժի հայտերը նշանակեք գարաժի։":""}</p>
-  ${adm?tgBox("admin",D.telegram.admin_linked):""}
-  <div class="box tbl">${D.requests.length?`<table><tr><th>Ժամանակ</th><th>Անուն</th><th>Հեռախոս</th><th>${adm?"Գարաժ":"Ծառայություն"}</th><th>Նշում</th><th>Փուլ</th></tr>
-  ${D.requests.map(r=>`<tr><td>${fmtDate(r.created_at)}</td><td>${esc(r.name)}</td><td><a href="tel:${esc(r.phone)}">${esc(r.phone)}</a></td>
-  <td>${adm?`<select data-assign="${r.id}" aria-label="Գարաժ">${gopts(r)}</select><div class="note">${esc(r.service||"")}</div>`:esc(r.service||"—")}</td><td>${esc(r.message)}</td>
-  <td><select data-stage="${r.id}" aria-label="Փուլ">${optsOf(STAGES,r.status)}</select>
-  <select data-reason="${r.id}" aria-label="Հրաժարման պատճառ" class="${r.status==="declined"?"":"hide"}" style="margin-top:6px"><option value="">— պատճառ —</option>${optsOf(REASONS,r.decline_reason)}</select></td></tr>`).join("")}</table>`:`<span class="note">Հայտեր դեռ չկան։</span>`}</div>`;
+  return `<div class="ph"><div><h2>Հայտեր</h2><p class="sub">Զանգահարեք վարորդին և թարմացրեք փուլը</p></div>
+  <label class="search">${ICO.search}<span class="sr-only">Որոնել</span><input id="rs" type="search" placeholder="Անուն կամ հեռախոս" autocomplete="off"></label></div>
+  <div class="grid2">
+  <section class="hl"><span class="ic">${ICO.bell}</span>
+  <div><b>Նոր հայտեր՝ ${n}</b><span class="note">Զանգահարեք վարորդին և թարմացրեք փուլը․ հաշվետվությունը ցույց կտա, թե քանի հայտ է հասել այցի։${adm?" Առանց գարաժի հայտերը նշանակեք գարաժի։":""}</span></div></section>
+  ${adm?tgBox("admin",D.telegram.admin_linked):""}</div>
+  ${D.requests.length?`<div class="fchips"><button class="fchip ${rf==="all"?"on":""}" data-rf="all">Բոլորը · ${D.requests.length}</button>${Object.entries(STAGES).filter(([k])=>cnt[k]).map(([k,v])=>`<button class="fchip ${rf===k?"on":""}" data-rf="${k}">${v} · ${cnt[k]}</button>`).join("")}</div>`:""}
+  <section class="card">${D.requests.length?`<div class="tbl"><table><thead><tr><th>Ժամանակ</th><th>Անուն</th><th>Հեռախոս</th><th>${adm?"Գարաժ / ծառայություն":"Ծառայություն"}</th><th>Նշում</th><th>Փուլ</th><th>Հրաժարման պատճառ</th></tr></thead><tbody>
+  ${list.map(r=>`<tr data-rid="${r.id}" data-q="${esc((r.name+" "+r.phone).toLowerCase())}" class="${r.status==="new"?"new":""}"><td>${fmtD(r.created_at)}</td><td style="white-space:nowrap"><strong>${esc(r.name)}</strong></td><td><a class="tel" href="tel:${esc(r.phone)}">${ICO.phone}${esc(r.phone)}</a></td>
+  <td>${adm?`<span class="two"><select data-assign="${r.id}" aria-label="Գարաժ" class="${r.garage_id?"":"unassigned"}">${gopts(r)}</select><small>${esc(r.service||"")}</small></span>`:esc(r.service||"—")}</td><td class="note" style="max-width:220px">${r.message?esc(r.message):`<span style="color:var(--dim)">—</span>`}</td>
+  <td><select data-stage="${r.id}" aria-label="Փուլ" class="st st-${r.status}">${optsOf(STAGES,r.status)}</select></td>
+  <td><select data-reason="${r.id}" aria-label="Հրաժարման պատճառ" class="${r.status==="declined"?"":"hide"}"><option value="">— պատճառ —</option>${optsOf(REASONS,r.decline_reason)}</select>${r.status==="declined"?"":`<span style="color:var(--dim)">—</span>`}</td></tr>`).join("")}</tbody></table></div>
+  <div class="cf"><p>Փուլի գույները՝ Նոր — կանաչ եզր, Զանգահարվել է — կապույտ, Չպատասխանեց — դեղին, Ժամ / Այցելեց — կանաչ, Հրաժարվեց — կարմիր։</p></div>`:`<div class="emptybox"><b>Հայտեր դեռ չկան</b><span>Նոր հայտերը կհայտնվեն այստեղ, երբ վարորդը դիմի օգնականով։</span></div>`}</section>`;
 }
 let R=null,rmonth=new Date().toLocaleDateString("sv-SE",{timeZone:"Asia/Yerevan"}).slice(0,7);
 const pct=(a,b)=>b?Math.round(100*a/b)+"%":"—";
 const fmtMin=m=>m==null?"—":m<60?m+" ր":Math.floor(m/60)+" ժ "+(m%60)+" ր";
-const card=(v,l)=>`<div class="card"><b>${v}</b><span>${l}</span></div>`;
+const card=(v,l,cls="")=>`<div class="card stat"><span>${l}</span><b class="${cls}">${v}</b></div>`;
+function shiftMonth(n){const [y,m]=rmonth.split("-").map(Number);const d=new Date(y,m-1+n,1);rmonth=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");R=null;render()}
 function reportView(){
-  if(!R||R.month!==rmonth){api("GET","/report?month="+rmonth).then(r=>{R=r;render()}).catch(()=>{});return `<h2>Հաշվետվություն</h2><p class="note">Բեռնվում է…</p>`}
-  const T=R.total,reasons=Object.entries(T.decline_reasons).sort((a,b)=>b[1]-a[1]);
-  return `<h2>Հաշվետվություն</h2><p class="sub">Հայտերը՝ ըստ ստեղծման ամսվա։ Վիճակները ընթացիկն են։</p>
-  <div class="row" style="margin-bottom:16px"><input type="month" id="rm" value="${R.month}" aria-label="Ամիս"></div>
-  <div class="cards">${card(T.total,"Հայտեր")}${card(pct(T.responded,T.total),"Արձագանքվել է")}${card(pct(T.booked_plus,T.total),"Ժամ պայմանավորվեց")}${card(pct(T.visited,T.total),"Այցելեցին (գարաժի նշումով)")}${card(T.confirmed_visits,"Վարորդի հաստատած այցեր")}${card(fmtMin(T.median_response_min),"Արձագանքման ժամանակ (միջնային)")}</div>
-  ${T.mismatch?`<div class="box" style="border-left:5px solid var(--bad)">⚠ <b>Անհամապատասխանություն՝ ${T.mismatch}</b>. գարաժը նշել է «Այցելեց», իսկ վարորդը ասել է՝ «չգնացի»։</div>`:""}
-  <div class="box tbl"><table><tr><th>Գարաժ</th><th>Հայտեր</th><th>Նոր</th><th>Զանգ</th><th>Չպատ.</th><th>Ժամ</th><th>Այցելեց</th><th>Հրաժարվեց</th><th>Արձագանք</th><th>Այց</th><th>Վարորդի հաստ.</th><th>Ժամանակ</th></tr>
-  ${R.garages.map(g=>`<tr><td>${esc(g.name)}</td><td>${g.total}</td><td>${g.new}</td><td>${g.called}</td><td>${g.no_answer}</td><td>${g.booked}</td><td>${g.visited}</td><td>${g.declined}</td><td>${pct(g.responded,g.total)}</td><td>${pct(g.visited,g.total)}</td><td>${g.confirmed_visits}${g.mismatch?` <span title="Անհամապատասխանություն" style="color:var(--bad)">⚠${g.mismatch}</span>`:""}</td><td>${fmtMin(g.median_response_min)}</td></tr>`).join("")}</table></div>
-  <div class="box"><b>Ինչու են հրաժարվում</b>${reasons.length?`<table style="margin-top:8px">${reasons.map(([k,v])=>`<tr><td>${esc(REASONS[k]||k)}</td><td>${v}</td><td>${pct(v,T.declined)}</td></tr>`).join("")}</table>`:`<p class="note">Այս ամսվա համար հրաժարումներ չկան։</p>`}</div>`;
+  if(!R||R.month!==rmonth){api("GET","/report?month="+rmonth).then(r=>{R=r;render()}).catch(()=>{});return `<div class="ph"><div><h2>Հաշվետվություն</h2><p class="sub">Բեռնվում է…</p></div></div>`}
+  const T=R.total,reasons=Object.entries(T.decline_reasons).sort((a,b)=>b[1]-a[1]),maxR=reasons.length?reasons[0][1]:0;
+  const c=(v,cls="")=>v?`<span class="cnt ${cls}">${v}</span>`:"0";
+  return `<div class="ph"><div><h2>Հաշվետվություն</h2><p class="sub">Հայտերն ըստ ստեղծման ամսվա։ Վիճակները ընթացիկն են։</p></div>
+  <div class="monthpick"><label for="rm">Ամիս</label><span class="mp"><button type="button" id="rmPrev" aria-label="Նախորդ ամիս">${ICO.prev}</button><input type="month" id="rm" value="${R.month}" aria-label="Ամիս"><button type="button" id="rmNext" aria-label="Հաջորդ ամիս">${ICO.next}</button></span></div></div>
+  <div class="stats">${card(T.total,"Հայտեր")}${card(pct(T.responded,T.total),"Արձագանքվել է")}${card(pct(T.booked_plus,T.total),"Ժամ պայմանավորվեց")}${card(pct(T.visited,T.total),"Այցելեցին (գարաժի նշումով)")}${card(T.confirmed_visits,"Վարորդի հաստատած այցեր","ok")}${card(fmtMin(T.median_response_min),"Արձագանքման ժամանակ (միջնային)")}</div>
+  ${T.mismatch?`<div class="warnmsg big">${ICO.warn}<span><b>Անհամապատասխանություն՝ ${T.mismatch}</b>. գարաժը նշել է «Այցելեց», իսկ վարորդը ասել է՝ «չգնացի»։</span></div>`:""}
+  <section class="card"><div class="ch"><h3>Ըստ գարաժների</h3></div><div class="tbl"><table><thead><tr><th>Գարաժ</th><th class="num">Հայտեր</th><th class="num">Նոր</th><th class="num">Զանգ.</th><th class="num">Չպատ.</th><th class="num">Ժամ</th><th class="num">Այցելեց</th><th class="num">Հրաժարվեց</th><th class="num">Արձագանք</th><th class="num">Այց</th><th class="num">Վարորդի հաստ.</th><th class="num">Ժամանակ</th></tr></thead><tbody>
+  ${R.garages.map(g=>`<tr class="${g.total?"":"dim"}"><td style="white-space:nowrap"><strong>${esc(g.name)}</strong></td><td class="num">${g.total?`<strong>${g.total}</strong>`:"0"}</td><td class="num">${c(g.new,"acc")}</td><td class="num">${g.called}</td><td class="num">${c(g.no_answer,"warn")}</td><td class="num">${g.booked}</td><td class="num">${g.visited}</td><td class="num">${g.declined}</td><td class="num">${pct(g.responded,g.total)}</td><td class="num">${pct(g.visited,g.total)}</td><td class="num">${g.confirmed_visits}${g.mismatch?` <span title="Անհամապատասխանություն" class="warn">⚠${g.mismatch}</span>`:""}</td><td class="num">${fmtMin(g.median_response_min)}</td></tr>`).join("")}</tbody></table></div></section>
+  <section class="card pad"><h3>Ինչու են հրաժարվում</h3>${reasons.length?`<div class="bars">${reasons.map(([k,v])=>`<div class="bar"><span>${esc(REASONS[k]||k)}</span><div class="track"><div class="fill" style="width:${Math.round(100*v/maxR)}%"></div></div><span class="num">${v} · ${pct(v,T.declined)}</span></div>`).join("")}</div><p class="fine" style="margin:0">Գծի երկարությունը՝ ըստ ամսվա հրաժարումների բաժնի։</p>`:`<p class="sub">Այս ամսվա համար հրաժարումներ չկան։ Պատճառները կերևան այստեղ, երբ հայտը ստանա «Հրաժարվեց» փուլը։</p>`}</section>`;
 }
 let RV=null;
+const stars=n=>`<span class="stars" role="img" aria-label="${n} աստղ 5-ից">${Array.from({length:5},(_,i)=>ICO.star.replace("<svg",i<n?"<svg":'<svg class="o"')).join("")}</span>`;
 function reviewsView(){
-  if(!RV){api("GET","/reviews").then(r=>{RV=r;render()}).catch(()=>{});return `<h2>Կարծիքներ</h2><p class="note">Բեռնվում է…</p>`}
-  const adm=isAdmin(),stars=n=>"★".repeat(n)+"☆".repeat(5-n),HIDE=["Կեղծ","Վիրավորական","Այլ"];
-  return `<h2>Կարծիքներ</h2><p class="sub">${adm?"Վարորդների հաստատած գնահատականները։ Կեղծ կամ վիրավորական կարծիքը կարող եք թաքցնել (պատճառով). գարաժը չի կարող թաքցնել կամ ջնջել։":"Այս կարծիքները տեսնում են այլ վարորդները ձեր գարաժի մասին։"}</p>
-  <div class="box tbl"><table><tr><th>Գարաժ</th><th>Գնահատական</th><th>Կարծիքներ</th></tr>
-  ${RV.ratings.map(g=>`<tr><td>${esc(g.name)}</td><td>${g.avg?"★ "+g.avg.toFixed(1):"—"}</td><td>${g.count}${g.count>0&&g.count<5?' <span class="note">(քիչ կարծիք)</span>':""}</td></tr>`).join("")}</table></div>
-  <div class="box tbl">${RV.reviews.length?`<table><tr><th>Ժամանակ</th>${adm?"<th>Գարաժ</th>":""}<th>Գնահատական</th><th>Կարծիք</th><th>Ծառայություն</th>${adm?"<th></th>":""}</tr>
-  ${RV.reviews.map(r=>`<tr ${r.hidden?'style="opacity:.6"':""}><td>${fmtDate(r.created_at)}</td>${adm?`<td>${esc(r.garage||"—")}</td>`:""}
-  <td>${r.went?`<span style="color:var(--star)">${stars(r.rating)}</span>`:`<span class="note">Չգնաց՝ ${esc(REASONS[r.reason]||r.reason||"")}</span>`}</td>
-  <td>${esc(r.comment)}${r.display_name?`<div class="note">— ${esc(r.display_name)}</div>`:""}</td><td>${esc(r.service||"")}</td>
-  ${adm?`<td style="white-space:nowrap">${r.went?(r.hidden?`<span class="badge done">Թաքցված՝ ${esc(r.hidden_reason||"")}</span> <button class="btn g" data-unhide="${r.id}">Վերականգնել</button>`
-    :`<select data-hr="${r.id}" aria-label="Պատճառ"><option value="">— պատճառ —</option>${HIDE.map(k=>`<option>${k}</option>`).join("")}</select> <button class="btn g" data-hide="${r.id}">Թաքցնել</button>`):""}</td>`:""}</tr>`).join("")}</table>`:`<span class="note">Կարծիքներ դեռ չկան։</span>`}</div>`;
+  if(!RV){api("GET","/reviews").then(r=>{RV=r;render()}).catch(()=>{});return `<div class="ph"><div><h2>Կարծիքներ</h2><p class="sub">Բեռնվում է…</p></div></div>`}
+  const adm=isAdmin(),HIDE=["Կեղծ","Վիրավորական","Այլ"];
+  const noRev=RV.ratings.filter(g=>!g.count).map(g=>g.name);
+  return `<div class="ph"><div><h2>Կարծիքներ</h2><p class="sub">${adm?"Վարորդների գնահատականները՝ ըստ գարաժների։ Կեղծ կամ վիրավորական կարծիքը կարող եք թաքցնել (պատճառով)․ թաքցրածը կայքում չի երևում։":"Այս կարծիքները տեսնում են այլ վարորդները ձեր գարաժի մասին։"}</p></div></div>
+  <div class="stats">${RV.ratings.map(g=>`<div class="card stat"><span>${esc(g.name)}</span><b>${g.avg?`<span style="color:var(--star)">★</span> ${g.avg.toFixed(1)}`:"—"}</b><span>${g.count} կարծիք${g.count>0&&g.count<5?" (քիչ կարծիք)":""}</span></div>`).join("")}</div>
+  <div class="revs">${RV.reviews.map(r=>`<article class="rev ${r.hidden?"off":""}"><div class="body">
+  <div class="top">${r.went?`${stars(r.rating)}<b>${r.rating} / 5</b>`:`<span class="pill plain">Չգնաց՝ ${esc(REASONS[r.reason]||r.reason||"")}</span>`}<span>·${r.display_name?` ${esc(r.display_name)} ·`:""} ${fmtDate(r.created_at)}</span></div>
+  ${r.comment?`<p>${esc(r.comment)}</p>`:""}
+  <div class="meta">${adm?`<a href="/catalog/${r.garage_id??""}" ${r.garage_id?"":'onclick="return false"'}>${esc(r.garage||"—")}</a>`:""}${r.service?`${adm?"<span>·</span>":""}<span>${esc(r.service)}</span>`:""}${r.went?`<span>·</span>${r.hidden?`<span class="pill bad plain">Թաքցված՝ ${esc(r.hidden_reason||"")}</span>`:`<span class="pill ok plain">Երևում է կայքում</span>`}`:""}</div></div>
+  ${adm&&r.went?`<div class="acts">${r.hidden?`<button class="btn" data-unhide="${r.id}">Վերականգնել</button>`
+    :`<select data-hr="${r.id}" aria-label="Պատճառ"><option value="">— պատճառ —</option>${HIDE.map(k=>`<option>${k}</option>`).join("")}</select><button class="btn" data-hide="${r.id}">${ICO.eyeoff}Թաքցնել</button>`}</div>`:""}</article>`).join("")}
+  ${!RV.reviews.length||noRev.length?`<div class="emptybox"><span class="stars">${ICO.star.repeat(5)}</span><b>${RV.reviews.length?esc(noRev.join(", "))+" դեռ կարծիք չունե"+(noRev.length>1?"ն":"")+"":"Կարծիքներ դեռ չկան"}</b><span>Կարծիքները հայտնվում են, երբ վարորդը գնահատում է ավարտված հայտը։</span></div>`:""}</div>`;
 }
+// ---- Գարաժներ. ցանկ (A-Garages) և խմբագրում (A-GarageEdit) ----
+const WD=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+function yerevanNow(){const d=new Date();const wd=WD.indexOf(d.toLocaleDateString("en-US",{timeZone:"Asia/Yerevan",weekday:"short"}));const t=d.toLocaleTimeString("en-GB",{timeZone:"Asia/Yerevan",hour:"2-digit",minute:"2-digit",hour12:false}).slice(0,5);return {wd,t}}
+function openNow(g){const {wd,t}=yerevanNow();const w=g.hours.find(x=>x.weekday===wd);return !!w&&w.open<=t&&t<w.close}
+const thisMonth=()=>new Date().toLocaleDateString("sv-SE",{timeZone:"Asia/Yerevan"}).slice(0,7);
+const monthOf=s=>new Date(s.replace(" ","T")+"Z").toLocaleDateString("sv-SE",{timeZone:"Asia/Yerevan"}).slice(0,7);
+const reqThisMonth=g=>{const m=thisMonth();return D.requests.filter(r=>r.garage_id===g.id&&monthOf(r.created_at)===m).length};
+const ratingOf=g=>RV?RV.ratings.find(x=>x.garage_id===g.id):null;
+let gq="",gf="all",gsort="name";
 function garagesView(){
   const adm=isAdmin();
-  let g=D.garages.find(x=>x.id===gsel)||D.garages[0];gsel=g?.id;
-  let h=adm?`<h2>Գարաժներ</h2><p class="sub">Գները պահպանվում են փոփոխելուն պես։ Ժամերը՝ «Պահպանել ժամերը» կոճակով։</p>
-  <div class="chips">${D.garages.map(x=>`<button class="chip ${x.id===gsel?"on":""}" data-g="${x.id}">${esc(x.name)}</button>`).join("")}<button class="chip" id="addG">+ Նոր գարաժ</button></div>`
-  :`<h2>Իմ գարաժը</h2><p class="sub">Գները պահպանվում են փոփոխելուն պես։ Ժամերը՝ «Պահպանել ժամերը» կոճակով։</p>`;
-  if(!g)return h+`<div class="box">Դեռ գարաժ չկա։ Սեղմեք «+ Նոր գարաժ»։</div>`;
-  h+=`<div class="box"><div class="row"><input id="gn" value="${esc(g.name)}" placeholder="Անվանում" aria-label="Անվանում"><input id="ga" value="${esc(g.address)}" placeholder="Հասցե" aria-label="Հասցե"><input id="gp" value="${esc(g.phone)}" placeholder="Հեռախոս" aria-label="Հեռախոս">
-  <button class="btn" id="saveG">Պահպանել</button>${adm?`<button class="btn g" id="delG">Ջնջել գարաժը</button>`:""}</div></div>
-  <div class="box"><b>Գարաժի տեղը քարտեզում</b>
-  <p class="note">${g.lat!=null?"Կետը հաստատված է. վարորդները chat-ում տեսնում են «Երթուղի» կոճակը։":`<span class="warn">Կետը դեռ հաստատված չէ. «Երթուղի» կոճակը վարորդներին չի երևում։</span>`} Եթե փոխեք հասցեն և սեղմեք «Պահպանել», հին կետը հանվում է, մինչև նորը հաստատեք։</p>
-  <div class="row"><button class="btn g" id="locHere">Ես գարաժում եմ</button><button class="btn g" id="locFind">Գտնել հասցեով</button>
-  <button class="btn" id="locSave" disabled>Պահպանել կետը</button>${g.lat!=null?`<button class="btn g" id="locClear">Հանել կետը</button>`:""}</div>
-  <p class="note" id="locMsg">Սեղմեք քարտեզին կամ քաշեք կարմիր կետը՝ ճիշտ մուտքի վրա։</p>
+  if(!adm)gsel=D.garages[0]?.id??null;
+  const g=D.garages.find(x=>x.id===gsel);
+  if(adm&&!g){gsel=null;return garagesList()}
+  if(!g)return `<div class="ph"><div><h2>Իմ գարաժը</h2></div></div><div class="emptybox"><b>Գարաժ չկա</b></div>`;
+  return garageEdit(g,adm);
+}
+function garagesList(){
+  if(!RV)api("GET","/reviews").then(r=>{RV=r;if(tab==="garages"&&gsel==null)render()}).catch(()=>{});
+  const all=D.garages,open=all.filter(openNow),m=thisMonth();
+  let list=all.filter(x=>gf==="all"||(gf==="open"&&openNow(x))||(gf==="closed"&&!openNow(x))||(gf==="nopoint"&&x.lat==null)||(gf==="nologin"&&!x.login));
+  list=list.slice().sort((a,b)=>gsort==="requests"?reqThisMonth(b)-reqThisMonth(a):gsort==="rating"?((ratingOf(b)?.avg||0)-(ratingOf(a)?.avg||0)):gsort==="recent"?b.id-a.id:a.name.localeCompare(b.name,"hy"));
+  const sel=(k,v)=>k===v?" selected":"";
+  const row=x=>{const r=ratingOf(x),ini=esc((x.name.trim()[0]||"Գ").toUpperCase()),n=reqThisMonth(x),isOpen=openNow(x);
+    return `<tr data-gid="${x.id}" data-q="${esc((x.name+" "+x.address+" "+x.phone).toLowerCase())}"${gq&&!(x.name+" "+x.address+" "+x.phone).toLowerCase().includes(gq)?" hidden":""}>
+    <td><a href="#" class="gname" data-g="${x.id}"><span class="avatar sq ${isOpen?"acc":""}">${ini}</span><strong>${esc(x.name)}</strong></a></td>
+    <td class="note">${x.address?esc(x.address):`<span style="color:var(--dim)">—</span>`}</td>
+    <td class="num" style="white-space:nowrap">${x.phone?esc(x.phone):`<span style="color:var(--dim)">—</span>`}</td>
+    <td><span class="two">${isOpen?`<span class="pill ok">Բաց է</span>`:`<span class="pill">Փակ է</span>`}${x.lat==null?`<small class="warn">Կետը չկա</small>`:""}</span></td>
+    <td class="num">${x.services.length}</td>
+    <td class="num">${n?`<strong>${n}</strong>`:"0"}</td>
+    <td class="num">${r&&r.avg?`<span class="stars one">${ICO.star}</span>${r.avg.toFixed(1)}`:`<span style="color:var(--dim)">—</span>`}</td>
+    <td>${x.login?`<span class="haslogin"><svg class="ico" style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>${esc(x.login)}</span>`:`<span style="color:var(--dim)">—</span>`}</td>
+    <td style="text-align:right;white-space:nowrap"><button class="btn sm" data-g="${x.id}">Խմբագրել${ICO.next}</button></td></tr>`};
+  const card=x=>{const r=ratingOf(x),ini=esc((x.name.trim()[0]||"Գ").toUpperCase()),n=reqThisMonth(x),isOpen=openNow(x);
+    return `<button class="gcard" data-g="${x.id}" data-gid="${x.id}" data-q="${esc((x.name+" "+x.address+" "+x.phone).toLowerCase())}"${gq&&!(x.name+" "+x.address+" "+x.phone).toLowerCase().includes(gq)?" hidden":""}>
+    <span class="avatar sq ${isOpen?"acc":""}">${ini}</span>
+    <span class="gc-body"><strong>${esc(x.name)}</strong><span class="note">${[x.address,x.services.length+" ծառայ.",n+" հայտ"].filter(Boolean).map(esc).join(" · ")}</span>
+    <span class="row" style="gap:6px">${isOpen?`<span class="pill ok">Բաց է</span>`:`<span class="pill">Փակ է</span>`}${x.lat==null?`<span class="pill warn plain">Կետը չկա</span>`:""}${r&&r.avg?`<span class="note"><span class="stars one">${ICO.star}</span>${r.avg.toFixed(1)}</span>`:""}</span></span>
+    ${ICO.next}</button>`};
+  return `<div class="ph"><div><h2>Գարաժներ</h2><p class="sub">Ընտրեք գարաժը ցանկից՝ տվյալները, ծառայությունները և ժամերը խմբագրելու համար։</p></div>
+  <button class="btn primary" id="addG">${ICO.plus}Նոր գարաժ</button></div>
+  <div class="stats">${card_(all.length,"Ընդամենը")}${card_(open.length,"Բաց են հիմա","ok")}${card_(all.filter(x=>x.lat==null).length,"Առանց քարտեզի կետի","warn")}${card_(all.filter(x=>!x.login).length,"Առանց մուտքի")}</div>
+  <div class="toolbar"><label class="search">${ICO.search}<span class="sr-only">Որոնել գարաժ</span><input id="gs" type="search" placeholder="Անվանում, հասցե կամ հեռախոս" value="${esc(gq)}" autocomplete="off"></label>
+  <div class="row"><select id="gf" aria-label="Կարգավիճակ"><option value="all"${sel(gf,"all")}>Բոլոր կարգավիճակները</option><option value="open"${sel(gf,"open")}>Բաց է հիմա</option><option value="closed"${sel(gf,"closed")}>Փակ է</option><option value="nopoint"${sel(gf,"nopoint")}>Առանց կետի</option><option value="nologin"${sel(gf,"nologin")}>Առանց մուտքի</option></select>
+  <select id="gsort" aria-label="Դասավորել"><option value="name"${sel(gsort,"name")}>Ըստ անվան A→Z</option><option value="requests"${sel(gsort,"requests")}>Ըստ հայտերի</option><option value="rating"${sel(gsort,"rating")}>Ըստ գնահատականի</option><option value="recent"${sel(gsort,"recent")}>Վերջին ավելացված</option></select></div></div>
+  ${all.length?`<section class="card glist"><div class="tbl"><table><thead><tr><th>Գարաժ</th><th>Հասցե</th><th>Հեռախոս</th><th>Կարգավիճակ</th><th class="num">Ծառայ.</th><th class="num">Հայտեր (ամիս)</th><th class="num">Գնահատ.</th><th>Մուտք</th><th></th></tr></thead><tbody>${list.map(row).join("")}</tbody></table></div>
+  <div class="cf"><p id="gcount">Ցուցադրվում է ${list.length} · ${all.length}-ից</p></div></section>
+  <div class="gcards">${list.map(card).join("")}</div>`
+  :`<div class="emptybox"><b>Դեռ գարաժ չկա</b><span>Սեղմեք «Նոր գարաժ»՝ առաջինը ավելացնելու համար։</span></div>`}`;
+}
+const card_=(v,l,cls="")=>`<div class="card stat"><span>${l}</span><b class="${cls}">${v}</b></div>`;
+function garageEdit(g,adm){
+  const nSvc=g.services.length,ini=esc((g.name.trim()[0]||"Գ").toUpperCase()),isOpen=openNow(g),today=yerevanNow().wd;
+  let h=adm?`<nav class="crumbs" aria-label="Ուղի"><a href="#" class="home" data-home="1" aria-label="Գլխավոր էջ" title="Գլխավոր էջ">${ICO.home}</a><span class="sep" aria-hidden="true">/</span><a href="#" data-back="1">Գարաժներ</a><span class="sep" aria-hidden="true">/</span><b aria-current="page">${esc(g.name)}</b></nav>`
+    :`<div class="ph"><div><h2>Իմ գարաժը</h2><p class="sub">Գները պահպանվում են փոփոխելուն պես, ժամերը՝ «Պահպանել ժամերը» կոճակով։</p></div></div>`;
+  h+=`<div class="ghead"><div class="gl"><span class="gavatar" aria-hidden="true">${ini}</span><div><h3>${esc(g.name)}</h3><div class="meta"><span>ID ${g.id}</span><span>·</span>${isOpen?`<span class="pill ok">Բաց է հիմա</span>`:`<span class="pill">Փակ է</span>`}${g.lat!=null?`<span class="pill ok">Կետը հաստատված է</span>`:`<span class="pill warn">Կետը հաստատված չէ</span>`}${adm?(g.login?`<span class="pill ok plain">Մուտք՝ ${esc(g.login)}</span>`:`<span class="pill plain">Առանց մուտքի</span>`):""}</div></div></div>
+  <div class="row"><a class="btn" href="/catalog/${g.id}" target="_blank" rel="noopener">${ICO.ext}Դիտել կայքում</a>${adm?`<button class="btn danger" id="delG">Ջնջել գարաժը</button>`:""}</div></div>
+  <section class="card pad" id="sec-main"><h3>Հիմնական տվյալներ</h3>
+  <div class="fields"><label class="lbl">Անվանում<input id="gn" value="${esc(g.name)}" placeholder="Անվանում"></label><label class="lbl">Հասցե<input id="ga" value="${esc(g.address)}" placeholder="Հասցե"></label><label class="lbl">Հեռախոս<input id="gp" type="tel" value="${esc(g.phone)}" placeholder="Հեռախոս"></label></div>
+  <div class="row"><button class="btn primary" id="saveG">Պահպանել</button></div></section>
+  <div class="${adm?"grid2 wide":"stack"}">
+  <section class="card pad"><h3>Գարաժի տեղը քարտեզում</h3>
   <div id="map" class="map"></div>
-  <p class="note">Քարտեզ՝ © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors։</p></div>
-  ${adm?`<div class="box"><b>Գարաժի մուտք</b><p class="note">${g.login?`Մուտքանուն՝ <b>${esc(g.login)}</b>։ `:"Մուտք դեռ չկա։ "}Սեփականատերը մտնում է նույն էջով՝ այս մուտքանունով և գաղտնաբառով, և տեսնում է միայն իր գարաժը և հայտերը։ Գաղտնաբառը հետո չի երևում. մոռանալու դեպքում սահմանեք նորը։</p>
-  <div class="row"><input id="al" placeholder="Մուտքանուն (լատինատառ)" value="${esc(g.login||"")}" autocomplete="off"><input id="ap" type="password" placeholder="Գաղտնաբառ (նվազ. 8 նիշ)" autocomplete="new-password"><button class="btn" id="saveAcc">Պահպանել մուտքը</button>${g.login?`<button class="btn g" id="delAcc">Հանել մուտքը</button>`:""}</div></div>`:""}
+  <p class="note" id="locMsg" style="margin:0">Սեղմեք քարտեզին կամ քաշեք կետը՝ ճիշտ մուտքի վրա։</p>
+  ${g.lat!=null?`<div class="okmsg">Կետը հաստատված է. վարորդները օգնականում տեսնում են «Երթուղի» կոճակը։</div>`:`<div class="warnmsg">Կետը դեռ հաստատված չէ. «Երթուղի» կոճակը վարորդներին չի երևում։</div>`}
+  <div class="row"><button class="btn" id="locHere">Ես գարաժում եմ</button><button class="btn" id="locFind">Գտնել հասցեով</button>
+  <button class="btn primary" id="locSave" disabled>Պահպանել կետը</button>${g.lat!=null?`<button class="btn danger" id="locClear">Հանել կետը</button>`:""}</div>
+  <p class="fine" style="margin:0">Եթե փոխեք հասցեն և սեղմեք «Պահպանել», հին կետը հանվում է, մինչև նորը հաստատեք։ Քարտեզ՝ © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors։</p></section>
+  <div id="${adm?"sec-login":"sec-tg"}" class="stack">
+  ${adm?`<section class="card pad"><h3>Գարաժի մուտք</h3>
+  <div class="loginrow">${g.login?`Մուտքանուն՝ <b>${esc(g.login)}</b>`:"Մուտք դեռ չկա։"}</div>
+  <p class="note" style="margin:0">Սեփականատերը մտնում է նույն էջով՝ այս մուտքանունով և գաղտնաբառով, և տեսնում է միայն իր գարաժը և հայտերը։ Գաղտնաբառը հետո չի երևում. մոռանալու դեպքում սահմանեք նորը։</p>
+  <label class="lbl">Մուտքանուն (լատինատառ)<input id="al" placeholder="autopro" value="${esc(g.login||"")}" autocomplete="off"></label>
+  <label class="lbl">Գաղտնաբառ (նվազ. 8 նիշ)<input id="ap" type="password" placeholder="••••••••" autocomplete="new-password"></label>
+  <div class="row"><button class="btn primary" id="saveAcc">Պահպանել մուտքը</button>${g.login?`<button class="btn danger" id="delAcc">Հանել մուտքը</button>`:""}</div></section>`:""}
   ${tgBox("garage",g.telegram_linked)}
-  <div class="box tbl"><b>Ծառայություններ և գներ</b><table><tr><th>Ծառայություն</th><th>Առաջարկում է</th><th>Գին (֏)</th><th>Տևողություն (ր)</th></tr>
-  ${D.services.map(s=>{const o=g.services.find(x=>x.service_id===s.id);return `<tr><td>${esc(s.name)}<div class="note">${esc(s.category)}</div></td>
-  <td><input type="checkbox" data-on="${s.id}" ${o?"checked":""} aria-label="Առաջարկում է"></td>
-  <td><input type="number" min="0" step="500" data-price="${s.id}" value="${o?o.price:""}" ${o?"":"disabled"}></td>
-  <td><input type="number" min="5" step="5" data-dur="${s.id}" value="${o?o.duration_min:60}" ${o?"":"disabled"}></td></tr>`}).join("")}</table></div>
-  <div class="box tbl"><b>Աշխատանքային ժամեր</b><table><tr><th>Օր</th><th>Բաց է</th><th>Բացում</th><th>Փակում</th></tr>
-  ${DAYS.map((n,i)=>{const w=g.hours.find(x=>x.weekday===i);return `<tr><td>${n}</td><td><input type="checkbox" data-ho="${i}" ${w?"checked":""}></td><td><input type="time" data-hf="${i}" value="${w?w.open:"09:00"}"></td><td><input type="time" data-ht="${i}" value="${w?w.close:"18:00"}"></td></tr>`}).join("")}</table>
-  <div style="margin-top:12px"><button class="btn" id="saveH">Պահպանել ժամերը</button></div></div>`;
+  </div></div>
+  <div class="grid2 wide">
+  <section class="card" id="sec-services"><div class="ch"><h3>Ծառայություններ և գներ</h3><label class="search sm">${ICO.search}<span class="sr-only">Որոնել ծառայություն</span><input id="ss" type="search" placeholder="Որոնել կատալոգում" autocomplete="off"></label></div><div class="tbl gtbl"><table><thead><tr><th class="chk">Առաջարկվում է</th><th>Ծառայություն</th><th>Գին (֏)</th><th>Տևող. (ր)</th></tr></thead><tbody>
+  ${D.services.map(s=>{const o=g.services.find(x=>x.service_id===s.id);return `<tr class="${o?"":"dim"}" data-sq="${esc((s.name+" "+s.category).toLowerCase())}"><td><input type="checkbox" data-on="${s.id}" ${o?"checked":""} aria-label="Առաջարկվում է"></td><td><span class="two"><strong>${esc(s.name)}</strong><small>${o?esc(s.category):"Անջատված"}</small></span></td>
+  <td><input type="number" min="0" step="500" data-price="${s.id}" value="${o?o.price:""}" ${o?"":'disabled placeholder="—"'} aria-label="Գին"></td>
+  <td><input type="number" min="5" step="5" data-dur="${s.id}" value="${o?o.duration_min:60}" ${o?"":"disabled"} aria-label="Տևողություն" style="width:64px"></td></tr>`}).join("")}</tbody></table></div>
+  <div class="cf"><p>Գինը պահպանվում է ավտոմատ՝ դաշտից դուրս գալիս։</p><span>${nSvc} / ${D.services.length} միացված</span></div></section>
+  <section class="card" id="sec-hours"><div class="ch"><h3>Աշխատանքային ժամեր</h3><button class="btn primary sm" id="saveH" style="font-size:13px">Պահպանել ժամերը</button></div><div class="tbl gtbl"><table><thead><tr><th>Օր</th><th class="chk">Բաց է</th><th>Բացում</th><th>Փակում</th></tr></thead><tbody>
+  ${DAYS.map((n,i)=>{const w=g.hours.find(x=>x.weekday===i);return `<tr class="${w?"":"dim"} ${i===today?"today":""}"><td><strong>${n}</strong></td><td><input type="checkbox" data-ho="${i}" ${w?"checked":""} aria-label="Բաց է"></td><td><input type="time" data-hf="${i}" value="${w?w.open:"09:00"}" ${w?"":"disabled"} aria-label="Բացում"></td><td><input type="time" data-ht="${i}" value="${w?w.close:"18:00"}" ${w?"":"disabled"} aria-label="Փակում"></td></tr>`}).join("")}</tbody></table></div></section>
+  </div>`;
   return h;
 }
+// ---- Հավելվածներ. նույն ցանկը, ինչ /download էջը (փաթեթները՝ webview/bin/publish.sh-ից) ----
+let DL=null;
+const PLAT={android:"Android",ios:"iPhone / iPad",windows:"Windows",macos:"macOS",linux:"Linux"};
+function appsView(){
+  if(!DL){fetch("/api/downloads").then(r=>r.json()).then(d=>{DL=d;if(tab==="apps")render()}).catch(()=>{});return `<div class="ph"><div><h2>Հավելվածներ</h2><p class="sub">Բեռնվում է…</p></div></div>`}
+  const mb=b=>(b/1048576).toFixed(1)+" ՄԲ",adm=isAdmin();
+  return `<div class="ph"><div><h2>Հավելվածներ</h2><p class="sub">AI Auto Service-ի հավելվածը հեռախոսի և համակարգչի համար. նույն օգնականն ու պանելը՝ իր պատուհանում, առանց բրաուզերի։ Հանրային էջը՝ <a href="/download" target="_blank" rel="noopener">/download</a>։</p></div>
+  <a class="btn" href="/download" target="_blank" rel="noopener">${ICO.ext}Բացել ներբեռնման էջը</a></div>
+  <div class="stats">${Object.keys(PLAT).map(k=>{const b=(DL.platforms[k]||[])[0],st=DL.stores[k];return `<div class="card stat"><span>${PLAT[k]}</span><b class="${b||st?"ok":""}" style="font-size:20px">${b?"v"+esc(b.version):st?"Խանութ":"—"}</b><span>${b?mb(b.size)+(b.arch?" · "+esc(b.arch):""):st?"հղում կա":"փաթեթ չկա"}</span></div>`}).join("")}</div>
+  <section class="card"><div class="ch"><h3>Պատրաստի փաթեթներ</h3><span class="fine">${DL.version?"Վերջին տարբերակը՝ "+esc(DL.version):"Դեռ չկան"}</span></div>
+  ${Object.values(DL.platforms).some(x=>x.length)?`<div class="tbl"><table><thead><tr><th>Հարթակ</th><th>Ֆայլ</th><th>Տարբերակ</th><th>Ճարտ.</th><th class="num">Չափ</th><th>Ամսաթիվ</th><th></th></tr></thead><tbody>
+  ${Object.entries(DL.platforms).flatMap(([k,bs])=>bs.map(b=>`<tr><td><strong>${PLAT[k]}</strong></td><td class="note">${esc(b.name)}</td><td class="num">${esc(b.version)}</td><td>${b.arch?esc(b.arch):`<span style="color:var(--dim)">—</span>`}</td><td class="num">${mb(b.size)}</td><td class="num">${esc(b.released_at)}</td><td style="text-align:right"><a class="btn sm" href="${esc(b.url)}" download>Ներբեռնել</a></td></tr>`)).join("")}</tbody></table></div>`
+  :`<div class="emptybox"><b>Փաթեթներ դեռ չկան</b><span>Կառուցեք և հրապարակեք՝ ստորև նշված քայլերով։</span></div>`}</section>
+  ${adm?`<section class="card pad"><h3>Ինչպես թարմացնել</h3>
+  <p class="note" style="margin:0">Պատյանների աղբյուրը՝ <code>webview/</code> թղթապանակը (Android, iOS, Windows, macOS, Linux)։ Կառուցելուց հետո փաթեթները դրվում են <code>downloads/</code>-ում, որտեղից էլ էջը դրանք ինքն է գտնում։ Անվան ձևը խիստ է՝ <code>aiauto-&lt;տարբերակ&gt;-&lt;հարթակ&gt;[-&lt;ճարտ.&gt;].&lt;ext&gt;</code>։</p>
+  <pre style="margin:0;padding:14px 16px;border-radius:12px;background:var(--bg);font:12px/1.6 var(--mono);overflow-x:auto">cd webview
+bin/build-android.sh          # Android՝ Docker-ով (ստորագրված release)
+bin/build-desktop.sh linux    # Linux՝ AppImage + deb
+bin/build-desktop.sh win-docker   # Windows՝ NSIS ինստալյատոր
+bin/build-desktop.sh mac      # macOS՝ միայն Mac-ի վրա
+bin/publish.sh                # → downloads/ (տարբերակը app.json-ից)</pre>
+  <p class="fine" style="margin:0">iPhone/iPad-ի համար փաթեթ չի լինում. հավելվածը գնում է App Store-ով (Xcode, Apple Developer հաշիվ), իսկ հղումը տրվում է <code>APP_STORE_URL</code>-ով։ Մինչ այդ էջը ցույց է տալիս «Ավելացնել գլխավոր էկրանին» ճանապարհը։</p></section>`:""}`;
+}
 function catalogView(){
-  return `<h2>Ծառայությունների կատալոգ</h2><p class="sub">Բանալի բառերը (ստորակետով) օգնում են chat-ի պարզ ռեժիմին հասկանալ խնդիրը։</p>
-  <div class="box tbl"><table><tr><th>Անվանում</th><th>Կատեգորիա</th><th>Բանալի բառեր</th><th></th></tr>
-  ${D.services.map(s=>`<tr data-sid="${s.id}"><td><input data-f="n" value="${esc(s.name)}" style="width:100%"></td><td><input data-f="c" value="${esc(s.category)}"></td><td><input data-f="k" value="${esc(s.keywords.join(", "))}" style="width:100%"></td>
-  <td style="white-space:nowrap"><button class="btn" data-savs="${s.id}">Պահպանել</button> <button class="btn g" data-dels="${s.id}">Ջնջել</button></td></tr>`).join("")}</table></div>
-  <div class="box"><b>Նոր ծառայություն</b><div class="row" style="margin-top:10px"><input id="cn" placeholder="Անվանում"><input id="cc" placeholder="Կատեգորիա"><input id="ck" placeholder="Բանալի բառեր"><button class="btn" id="addC">Ավելացնել</button></div></div>`;
+  return `<div class="ph"><div><h2>Կատալոգ</h2><p class="sub">Ծառայությունների ընդհանուր ցանկը․ յուրաքանչյուր գարաժ միացնում է իրենը և դնում իր գինը։ Բանալի բառերը (ստորակետով) օգնում են օգնականի պարզ ռեժիմին հասկանալ խնդիրը։ «Օրինակ հարցը» երևում է օգնականի «հաճախ հարցվող» հուշումներում, երբ այդ ծառայությունը վերջին 30 օրում ամենաշատ հարցվածներից է։</p></div></div>
+  <section class="card"><div class="tbl"><table><thead><tr><th>Անվանում</th><th>Կատեգորիա</th><th>Բանալի բառեր</th><th>Օրինակ հարց (օգնականի հուշում)</th><th></th></tr></thead><tbody>
+  ${D.services.map(s=>`<tr data-sid="${s.id}"><td style="min-width:220px"><input data-f="n" value="${esc(s.name)}" aria-label="Անվանում"></td><td style="min-width:150px"><input data-f="c" value="${esc(s.category)}" aria-label="Կատեգորիա"></td><td style="min-width:240px"><input data-f="k" value="${esc(s.keywords.join(", "))}" aria-label="Բանալի բառեր"></td><td style="min-width:220px"><input data-f="q" value="${esc(s.sample_question||"")}" placeholder="օր.՝ Արգելակելիս ճռռոց է լսվում" aria-label="Օրինակ հարց"></td>
+  <td style="white-space:nowrap"><div class="row" style="flex-wrap:nowrap"><button class="btn primary sm" style="font-size:13px" data-savs="${s.id}">Պահպանել</button><button class="btn danger sm" data-dels="${s.id}">Ջնջել</button></div></td></tr>`).join("")}</tbody></table></div>
+  <div class="cf"><p>Ջնջելու կոճակը աշխատում է միայն այն ծառայությունների համար, որոնք ոչ մի գարաժ չի միացրել։</p></div></section>
+  <section class="card pad"><h3>Նոր ծառայություն</h3><div class="fields"><label class="lbl">Անվանում<input id="cn" placeholder="Անվանում"></label><label class="lbl">Կատեգորիա<input id="cc" placeholder="Կատեգորիա"></label><label class="lbl">Բանալի բառեր<input id="ck" placeholder="յուղ, ֆիլտր, փոխել"></label><label class="lbl">Օրինակ հարց<input id="cq" placeholder="օր.՝ Արգելակելիս ճռռոց է լսվում" maxlength="150"></label></div><div class="row"><button class="btn primary" id="addC">${ICO.plus}Ավելացնել</button></div></section>`;
 }
 function render(){
-  document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.t===tab));
-  $("#main").innerHTML=tab==="requests"?requestsView():tab==="garages"?garagesView():tab==="report"?reportView():tab==="reviews"?reviewsView():catalogView();
+  if(!D)return; // տվյալները դեռ չեն բեռնվել (մուտքից անմիջապես հետո)
+  const h=pathFor();if(location.pathname!==h)history.replaceState(null,"",h);
+  document.querySelectorAll("#tabs button").forEach(b=>{b.classList.toggle("on",b.dataset.t===tab);b.toggleAttribute("aria-current",b.dataset.t===tab)});
+  const n=D?D.requests.filter(r=>r.status==="new").length:0;const nb=$("#nbadge");nb.textContent=n;nb.hidden=!n;
+  $("#main").innerHTML=tab==="requests"?requestsView():tab==="garages"?garagesView():tab==="report"?reportView():tab==="reviews"?reviewsView():tab==="apps"?appsView():catalogView();
   if(tab==="garages")initMap();
 }
 // ---- Գարաժի կետը քարտեզում ----
@@ -217,7 +617,7 @@ async function initMap(){
   let el=$("#map");if(!el)return;
   if(typeof L==="undefined"){el.textContent="Քարտեզը բեռնվում է…";await loadLeafletCDN();el=$("#map");if(!el)return}
   if(typeof L==="undefined"){el.textContent="Քարտեզը չբեռնվեց։";return}
-  el.textContent="";
+  el.textContent="";el.style.display="block";
   const g=curG();
   MAP=L.map(el).setView(g&&g.lat!=null?[g.lat,g.lng]:[40.1792,44.4991],g&&g.lat!=null?17:12);
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap contributors"}).addTo(MAP);
@@ -227,17 +627,27 @@ async function initMap(){
 const kw=s=>s.split(",").map(x=>x.trim()).filter(Boolean);
 const curG=()=>D.garages.find(x=>x.id===gsel);
 
-$("#tabs").onclick=e=>{if(e.target.dataset.t){tab=e.target.dataset.t;render()}};
-$("#out").onclick=logout;$("#go").onclick=login;$("#lg").addEventListener("keydown",e=>{if(e.key==="Enter")login()});$("#pw").addEventListener("keydown",e=>{if(e.key==="Enter")login()});
+$("#tabs").onclick=e=>{const b=e.target.closest("[data-t]");if(b)nav(b.dataset.t)};
+$("#out").onclick=logout;$("#lform").onsubmit=e=>{e.preventDefault();login()}; // Enter-ը և «Մուտք» կոճակը նույն submit-ն են՝ մեկ հարցում
+$("#pwEye").onclick=()=>{const p=$("#pw"),show=p.type==="password";p.type=show?"text":"password";$("#pwEye").setAttribute("aria-label",show?"Թաքցնել գաղտնաբառը":"Ցույց տալ գաղտնաբառը")};
 
+$("#main").oninput=e=>{ // հայտերի որոնում՝ առանց վերագծելու
+  if(e.target.id==="rs"){const q=e.target.value.trim().toLowerCase();document.querySelectorAll("tr[data-rid]").forEach(tr=>tr.hidden=!!q&&!tr.dataset.q.includes(q))}
+  if(e.target.id==="gs"){gq=e.target.value.trim().toLowerCase();let n=0;document.querySelectorAll("[data-gid]").forEach(el=>{el.hidden=!!gq&&!el.dataset.q.includes(gq);if(!el.hidden&&el.tagName==="TR")n++});const c=$("#gcount");if(c)c.textContent=`Ցուցադրվում է ${n} · ${D.garages.length}-ից`}
+  if(e.target.id==="ss"){const q=e.target.value.trim().toLowerCase();document.querySelectorAll("tr[data-sq]").forEach(tr=>tr.hidden=!!q&&!tr.dataset.sq.includes(q))}
+};
 $("#main").onclick=async e=>{
-  const t=e.target,d=t.dataset;
+  const t=e.target.closest("button,[data-g],[data-back],[data-home]")||e.target,d=t.dataset;
+  if(d.g||d.back||d.home)e.preventDefault();
   try{
-    if(d.hide){const sel=document.querySelector(`[data-hr="${d.hide}"]`);if(!sel.value){toast("Ընտրեք թաքցնելու պատճառը",true);return}
+    if(d.home){nav("requests")}
+    else if(d.back){nav("garages")}
+    else if(d.rf){rf=d.rf;render()}
+    else if(d.hide){const sel=document.querySelector(`[data-hr="${d.hide}"]`);if(!sel.value){toast("Ընտրեք թաքցնելու պատճառը",true);return}
       await api("PATCH","/reviews/"+d.hide,{hidden:true,reason:sel.value});RV=null;render();toast("Կարծիքը թաքցվեց")}
     else if(d.unhide){await api("PATCH","/reviews/"+d.unhide,{hidden:false});RV=null;render();toast("Կարծիքը վերականգնվեց")}
     else if(d.req){await api("PATCH","/requests/"+d.req,{status:d.to});await refresh();render()}
-    else if(d.g){gsel=+d.g;render()}
+    else if(d.g){nav("garages",+d.g)}
     else if(d.tglink){
       const r=await api("POST",d.tglink==="admin"?"/telegram/link":`/garages/${gsel}/telegram/link`);
       const box=$("#tgInfo-"+d.tglink);
@@ -246,11 +656,13 @@ $("#main").onclick=async e=>{
       watchLink();
     }
     else if(d.tgunlink){await api("DELETE",d.tgunlink==="admin"?"/telegram":`/garages/${gsel}/telegram`);await refresh();render();toast("Telegram-ը անջատվեց")}
+    else if(t.id==="rmPrev"){shiftMonth(-1)}
+    else if(t.id==="rmNext"){shiftMonth(1)}
     else if(t.id==="saveAcc"){
       const pw=$("#ap").value;if(!$("#al").value.trim()||!pw){toast("Լրացրեք մուտքանունը և գաղտնաբառը",true);return}
       await api("PUT",`/garages/${gsel}/account`,{login:$("#al").value.trim(),password:pw});await refresh();render();toast("Մուտքը պահպանվեց")}
     else if(t.id==="delAcc"){if(armed(t,"Հանել մուտքը")){await api("DELETE",`/garages/${gsel}/account`);await refresh();render();toast("Մուտքը հանվեց")}}
-    else if(t.id==="addG"){const r=await api("POST","/garages",{name:"Նոր գարաժ"});await refresh();gsel=r.id;render();toast("Գարաժը ավելացվեց")}
+    else if(t.id==="addG"){const r=await api("POST","/garages",{name:"Նոր գարաժ"});await refresh();nav("garages",r.id);toast("Գարաժը ավելացվեց")}
     else if(t.id==="locHere"){
       if(!navigator.geolocation){toast("Դիտարկիչը տեղորոշում չի աջակցում",true);return}
       locMsg("Տեղորոշվում է…");
@@ -278,32 +690,35 @@ $("#main").onclick=async e=>{
     else if(t.id==="saveH"){
       const days=[];for(let i=0;i<7;i++)if(document.querySelector(`[data-ho="${i}"]`).checked)days.push({weekday:i,open:document.querySelector(`[data-hf="${i}"]`).value,close:document.querySelector(`[data-ht="${i}"]`).value});
       await api("PUT",`/garages/${gsel}/hours`,{days});await refresh();toast("Ժամերը պահպանվեցին")}
-    else if(t.id==="addC"){const n=$("#cn").value.trim();if(!n){$("#cn").focus();return}await api("POST","/services",{name:n,category:$("#cc").value.trim()||"Այլ",keywords:kw($("#ck").value)});await refresh();render();toast("Ծառայությունը ավելացվեց")}
-    else if(d.savs){const tr=t.closest("tr");await api("PUT","/services/"+d.savs,{name:tr.querySelector('[data-f=n]').value.trim(),category:tr.querySelector('[data-f=c]').value.trim()||"Այլ",keywords:kw(tr.querySelector('[data-f=k]').value)});await refresh();toast("Պահպանվեց")}
+    else if(t.id==="addC"){const n=$("#cn").value.trim();if(!n){$("#cn").focus();return}await api("POST","/services",{name:n,category:$("#cc").value.trim()||"Այլ",keywords:kw($("#ck").value),sample_question:$("#cq").value.trim()});await refresh();render();toast("Ծառայությունը ավելացվեց")}
+    else if(d.savs){const tr=t.closest("tr");await api("PUT","/services/"+d.savs,{name:tr.querySelector('[data-f=n]').value.trim(),category:tr.querySelector('[data-f=c]').value.trim()||"Այլ",keywords:kw(tr.querySelector('[data-f=k]').value),sample_question:tr.querySelector('[data-f=q]').value.trim()});await refresh();toast("Պահպանվեց")}
     else if(d.dels){if(armed(t,"Ջնջել")){await api("DELETE","/services/"+d.dels);await refresh();render();toast("Ծառայությունը ջնջվեց")}}
   }catch(err){}
 };
 $("#main").onchange=async e=>{
   const t=e.target,d=t.dataset,g=curG();
   if(t.id==="rm"){rmonth=t.value||rmonth;R=null;render();return}
+  if(t.id==="gf"){gf=t.value;render();return}
+  if(t.id==="gsort"){gsort=t.value;render();return}
   if(d.stage){
     const rs=document.querySelector(`[data-reason="${d.stage}"]`);
+    t.className="st st-"+t.value;
     if(t.value==="declined"){rs.classList.remove("hide");rs.focus();toast("Ընտրեք հրաժարման պատճառը");return}
     rs.classList.add("hide");
     try{await api("PATCH","/requests/"+d.stage,{status:t.value});await refresh();render();toast("Փուլը պահպանվեց")}catch(err){}return}
   if(d.reason){if(!t.value)return;try{await api("PATCH","/requests/"+d.reason,{status:"declined",decline_reason:t.value});await refresh();render();toast("Փուլը պահպանվեց")}catch(err){}return}
-  if(d.assign){try{await api("PUT",`/requests/${d.assign}/garage`,{garage_id:t.value?+t.value:null});await refresh();toast(t.value?"Հայտը նշանակվեց գարաժին":"Նշանակումը հանվեց")}catch(err){}return}
+  if(d.assign){t.classList.toggle("unassigned",!t.value);try{await api("PUT",`/requests/${d.assign}/garage`,{garage_id:t.value?+t.value:null});await refresh();toast(t.value?"Հայտը նշանակվեց գարաժին":"Նշանակումը հանվեց")}catch(err){}return}
   if(!g)return;
   try{
     if(d.on){
-      const p=document.querySelector(`[data-price="${d.on}"]`),u=document.querySelector(`[data-dur="${d.on}"]`);
-      if(t.checked){p.disabled=u.disabled=false;p.focus();toast("Մուտքագրեք գինը")}
-      else{await api("DELETE",`/garages/${g.id}/services/${d.on}`);p.value="";p.disabled=u.disabled=true;await refresh();toast("Ծառայությունը հանվեց")}
+      const p=document.querySelector(`[data-price="${d.on}"]`),u=document.querySelector(`[data-dur="${d.on}"]`),tr=t.closest("tr");
+      if(t.checked){p.disabled=u.disabled=false;tr.classList.remove("dim");p.focus();toast("Մուտքագրեք գինը")}
+      else{await api("DELETE",`/garages/${g.id}/services/${d.on}`);p.value="";p.disabled=u.disabled=true;tr.classList.add("dim");await refresh();toast("Ծառայությունը հանվեց")}
     }else if(d.price||d.dur){
       const sid=d.price||d.dur,p=document.querySelector(`[data-price="${sid}"]`),u=document.querySelector(`[data-dur="${sid}"]`);
       if(p.value==="")return;
       await api("PUT",`/garages/${g.id}/services/${sid}`,{price:+p.value,duration_min:+u.value||60});await refresh();toast("Գինը պահպանվեց");
-    }
+    }else if(d.ho!==undefined){const tr=t.closest("tr");tr.classList.toggle("dim",!t.checked);tr.querySelectorAll("input[type=time]").forEach(i=>i.disabled=!t.checked)}
   }catch(err){}
 };
 let pollT;
@@ -314,12 +729,6 @@ function watchLink(){ // Telegram-ի կապի կարգավիճակի թարմա�
 }
 if(token)start().catch(()=>logout());else logout();
 
-// ---- Տեղադրվող հավելված (PWA) ----
-if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));
-let deferredInstall=null;const inst=$("#install");
-addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e;inst.hidden=false});
-inst.onclick=async()=>{if(!deferredInstall)return;deferredInstall.prompt();try{await deferredInstall.userChoice}catch(e){}deferredInstall=null;inst.hidden=true};
-addEventListener("appinstalled",()=>{inst.hidden=true});
 </script>
 </body>
 </html>

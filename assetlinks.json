@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "am.aiauto.app",
+    "sha256_cert_fingerprints": ["7C:54:D6:52:84:BD:11:06:C6:F0:83:24:8F:8D:34:05:A8:CA:17:38:9F:D3:BB:86:4D:5E:A9:51:65:E8:52:53"]
+  }
+}]

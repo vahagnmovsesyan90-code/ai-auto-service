@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="hy">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Auto Service — Իմ հայտերը</title>
+<meta name="theme-color" content="#FFFFFF">
+<meta name="color-scheme" content="light">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Armenian:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/static/ui.css?v=__APP_VERSION__">
+<style>
+.fils{display:flex;gap:8px;flex-wrap:wrap}
+#mineList{display:flex;flex-direction:column;gap:14px}
+.mc{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px 22px;display:flex;flex-direction:column;gap:16px;box-shadow:var(--sh1)}
+.mc .top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.mc .who{display:flex;gap:14px;align-items:flex-start;min-width:0}
+.mc .tl{display:flex;flex-direction:column;gap:3px;min-width:0}
+.mc .nm{font-size:16px;font-weight:600;color:var(--ink)}.mc .nm:hover{color:var(--acc)}
+.mc .sv{font-size:14px;color:var(--ink2)}.mc .dt{font-size:13px;color:var(--mute)}
+.mc .rate{display:flex;justify-content:space-between;align-items:center;gap:12px;padding-top:14px;border-top:1px solid var(--line2);flex-wrap:wrap}
+.mc .q{font-size:14px;font-weight:500;color:var(--ink2)}.mc .q strong{color:var(--ink);font-weight:600}
+.mc .srow{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.stars{display:flex;gap:2px}
+.stars button{width:40px;height:40px;border:0;background:transparent;color:var(--empty);cursor:pointer;display:grid;place-items:center;border-radius:8px;padding:0;transition:color .1s,transform .1s}
+.stars button svg{width:22px;height:22px;fill:currentColor}
+.stars button.on{color:var(--star)}.stars button:hover{transform:scale(1.1)}.stars.hov button.pre{color:var(--star);opacity:.6}
+.stars.ro{gap:1px}.stars.ro span{width:22px;height:22px;color:var(--empty);display:grid;place-items:center}.stars.ro span.on{color:var(--star)}.stars.ro span svg{width:18px;height:18px;fill:currentColor}
+.mc .lnk{cursor:pointer;background:none;border:0;color:var(--mute);font-size:13px;text-decoration:underline;text-underline-offset:3px;padding:0}.mc .lnk:hover{color:var(--ink)}
+.mc .frm{display:none;flex-direction:column;gap:14px;padding-top:14px;border-top:1px solid var(--line2)}.mc.open .frm{display:flex}
+.mc .act{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.mc .err{color:var(--bad);font-size:13px}.mc .err:empty{display:none}
+.mc .mini{font-size:12px;color:var(--dim)}
+.mc .thanks{font-size:13px;color:var(--acc2);font-weight:500}
+.mc .cm{font-size:14px;color:var(--ink);background:var(--bg);border-radius:12px;padding:10px 14px;white-space:pre-wrap;word-break:break-word}
+.mc .cm .who{display:block;font-size:12px;color:var(--mute);margin-top:4px}
+.mc .nogo{display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;background:var(--bg);color:var(--ink2);font-size:12px;font-weight:600}
+.mc .done{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:var(--soft);color:var(--acc2);font-size:12px;font-weight:600}
+.mc .ratedview{display:flex;flex-direction:column;gap:10px}
+@media(max-width:600px){.fils{flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px}.fils .fchip{flex:0 0 auto;height:36px}.mc{padding:16px}.stars button{width:44px;height:44px}.mc .rate{flex-direction:column;align-items:stretch}.stars{justify-content:space-between}.mc .srow{justify-content:space-between}}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="brand" href="/app"><span class="logo" aria-hidden="true"><svg class="" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span><span class="ttl"><b>AI Auto Service</b><span class="sub">Ձեր ավտոսերվիսի օգնականը</span></span></a>
+  <nav class="hr" aria-label="Հիմնական"><a id="homeBtn" class="inst" href="/app"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span class="lbl">Օգնական</span></a><a id="mineBtn" class="inst on" href="/my"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6M9 16h6"/></svg><span class="lbl">Իմ հայտերը</span></a><a id="allBtn" class="inst" href="/catalog"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21V8l9-5 9 5v13"/><path d="M7 21v-8h10v8"/><path d="M7 17h10"/></svg><span class="lbl">Գարաժներ</span></a><a id="appBtn" class="inst" href="/download"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg><span class="lbl">Հավելված</span></a></nav>
+  <span class="hspace"></span>
+</div></header>
+<main class="page">
+  <div class="ptop"><div><h1 class="pt">Իմ հայտերը</h1><p class="lead">Գնահատեք՝ ծառայությունից հետո սեղմելով աստղերը։ Ձեր կարծիքը տեսնում են բոլոր օգտատերերը։</p></div>
+    <a class="btn primary" href="/catalog"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Նոր հայտ</a></div>
+  <div class="fils" id="fils" hidden><button type="button" class="fchip on" data-f="all">Բոլորը</button><button type="button" class="fchip" data-f="pending">Սպասում են գնահատման</button><button type="button" class="fchip" data-f="rated">Գնահատված</button></div>
+  <div id="stwarn" class="notice" hidden>Դիտարկիչը չի թույլատրում պահել տվյալներ (հնարավոր է՝ private ռեժիմ)։ Հայտերը պահվում են հասցեագոտում. մի փակեք այս էջը, մինչև գնահատեք։</div>
+  <div id="mineList"></div>
+  <nav class="pg" id="pg" aria-label="Էջեր"></nav>
+</main>
+<div class="ver">v__APP_VERSION__</div>
+<script>
+const $$=id=>document.getElementById(id);
+let storageOk=true;const mem={};
+const store={ // նույն պահոցը, ինչ chat-ը (pending_reviews). եթե localStorage-ը արգելված է՝ հիշողության մեջ + հասցեագոտու #h=
+  get(k,d){try{const v=localStorage.getItem(k);return v==null?(k in mem?mem[k]:d):JSON.parse(v)}catch(e){storageOk=false;return k in mem?mem[k]:d}},
+  set(k,v){mem[k]=v;try{localStorage.setItem(k,JSON.stringify(v))}catch(e){storageOk=false}}
+};
+function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e}
+function myReqs(){const cut=Date.now()-90*86400000;return store.get("pending_reviews",[]).filter(x=>x.ts>cut)}
+const tokOf=x=>x.tok||String(x.url||"").split("/").filter(Boolean).pop();   // հին պահոցի գրառումները url-ով են (/review/<token>)
+function hashTokens(){const m=location.hash.match(/[#&]h=([A-Za-z0-9_,-]*)/);return m?m[1].split(",").filter(Boolean):[]}
+function writeHash(){ // պահուստ հասցեագոտում. chat-ի հղումները նույնպես տանում են այն
+  const t=myReqs().filter(x=>!x.done).map(x=>tokOf(x)).slice(-5),h=t.length?"#h="+t.join(","):"";
+  try{window.history.replaceState(null,"",location.pathname+location.search+h)}catch(e){}
+  $$("homeBtn").href="/app"+h;
+}
+const params=new URLSearchParams(location.search),PER=Math.max(1,Math.min(50,+params.get("per_page")||10));   // էջում 10 հայտ
+let page=Math.max(1,+params.get("page")||1),total=0,pageItems=null,counts=null;   // pageItems՝ սերվերի տված էջը. null՝ կապ չկա
+let filter=["all","pending","rated"].includes(params.get("f"))?params.get("f"):"all";   // ֆիլտրը սերվերում է (status)
+async function syncMine(){ // սերվերը տալիս է պահանջված էջը (նորը վերևում) և բոլոր գոյություն ունեցող token-ները. անվավերները հանվում են պահոցից
+  const l=store.get("pending_reviews",[]),byTok=new Map(l.map(x=>[tokOf(x),x]));
+  const toks=[...new Set([...l.map(x=>tokOf(x)),...hashTokens()])].slice(0,200);
+  pageItems=null;if(!toks.length){pageItems=[];total=0;return}
+  try{
+    const r=await fetch("/my-requests/check",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({tokens:toks,page,per_page:PER,status:filter})});
+    if(!r.ok)return;                                   // սխալի կամ կապի բացակայության դեպքում ոչինչ չենք ջնջում
+    const d=await r.json(),info=new Map(d.requests.map(x=>[x.token,x]));
+    const out=[];
+    for(const v of d.valid){const old=byTok.get(v.token)||{ts:Date.now()},i=info.get(v.token)||{};
+      out.push({...old,tok:v.token,garage:i.garage||old.garage||"Գարաժ",service:i.service||old.service||"",done:v.done||!!old.done})}
+    store.set("pending_reviews",out);
+    total=d.total;const pages=Math.max(1,Math.ceil(total/PER));
+    if(page>pages){page=pages;return syncMine()}       // էջը այլևս չկա
+    counts={all:d.all_total,pending:d.pending_total,rated:d.rated_total};
+    pageItems=d.requests.map(x=>({tok:x.token,garage:x.garage,garage_id:x.garage_id,address:x.address||"",service:x.service||"",ts:Date.parse(x.created_at)||Date.now(),
+      done:x.already_reviewed,rating:x.rating,went:x.went,comment:x.comment||"",display_name:x.display_name||""}));
+  }catch(e){}
+}
+const REASONS={price:"Թանկ էր",far:"Հեռու էր",other_garage:"Գնացի այլ գարաժ",no_time:"Ժամը չհամապատասխանեց",changed_mind:"Այլևս պետք չեղավ",other:"Այլ պատճառ"};
+function refreshMine(){const n=myReqs().filter(x=>!x.done).length;document.querySelector("#mineBtn .lbl").textContent="Իմ հայտերը"+(n?` (${n})`:"")}
+function markDone(tok,res){store.set("pending_reviews",store.get("pending_reviews",[]).map(y=>tokOf(y)===tok?{...y,done:true,...res}:y));writeHash();refreshMine()}
+const ICON={star:'<svg class="star" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3 6.1 20.6l1.3-6.6L2.5 9.4l6.6-.8z"/></svg>',check:'<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>'};   // հաստատուն պատկերակներ
+function ratedView(x){ // գնահատված հայտ. տրված աստղերը և գրած կարծիքը, «չգնացի»-ն՝ նշումով
+  const w=el("div","ratedview");
+  if(x.went===false){w.append(el("span","nogo","Չեմ գնացել"));return w}
+  if(!x.rating){const d=el("span","done");d.innerHTML=ICON.check;d.append("Գնահատված");w.append(d);return w}
+  const row=el("div","rate"),q=el("div","q");q.append("Ձեր գնահատականը · ",el("strong",null,`${x.rating} / 5`));
+  const s=el("div","stars ro");s.setAttribute("aria-label",`Ձեր գնահատականը՝ ${x.rating} աստղ`);
+  for(let i=1;i<=5;i++){const b=el("span",i<=x.rating?"on":"");b.innerHTML=ICON.star;s.append(b)}
+  row.append(q,s);w.append(row);
+  if(x.comment){const c=el("div","cm",x.comment);if(x.display_name)c.append(el("span","who","— "+x.display_name));w.append(c)}
+  return w;
+}
+function pager(box,page,pages,go){ // էջերի համարներ. 1 … 4 5 6 … N
+  box.textContent="";if(pages<=1)return;
+  const b=(t,p,on,dis)=>{const x=el("button",on?"on":"",t);x.type="button";x.disabled=!!dis;if(on)x.setAttribute("aria-current","page");x.onclick=()=>go(p);box.append(x)};
+  b("‹",page-1,false,page<=1);
+  const set=new Set([1,pages,page-1,page,page+1].filter(p=>p>=1&&p<=pages));let last=0;
+  [...set].sort((a,c)=>a-c).forEach(p=>{if(p-last>1)box.append(el("span",null,"…"));b(String(p),p,p===page);last=p});
+  b("›",page+1,false,page>=pages);
+}
+function mineCard(x){ // մեկ հայտ. գնահատումը հենց այստեղ՝ աստղերով
+  const c=el("div","mc"),top=el("div","top"),who=el("div","who"),tl=el("div","tl");
+  const nm=x.garage_id?el("a","nm",x.garage):el("span","nm",x.garage);if(x.garage_id)nm.href="/catalog/"+x.garage_id;
+  tl.append(nm);if(x.service)tl.append(el("div","sv",x.service));
+  tl.append(el("div","dt",`Հայտը ուղարկված է ${new Date(x.ts).toLocaleDateString("en-GB").replace(/\//g,".")}`+(x.address?` · ${x.address}`:"")));
+  who.append(el("span","avatar"+(x.done&&x.went!==false?" acc":""),(x.garage||"?").trim().charAt(0).toUpperCase()),tl);
+  let status;
+  if(x.done&&x.went===false)status=el("span","chip plain","Չեմ գնացել");
+  else if(x.done){status=el("span","chip done");status.innerHTML=ICON.check;status.append("Գնահատված")}
+  else status=el("span","chip warn","Սպասում է գնահատման");
+  top.append(who,status);c.append(top);
+  if(x.done){c.append(ratedView(x));return c}
+  let rating=0,went=true;
+  const rate=el("div","rate"),q=el("div","q","Ինչպե՞ս անցավ ծառայությունը"),stars=el("div","stars");stars.setAttribute("role","radiogroup");stars.setAttribute("aria-label","Գնահատական");
+  const sb=[1,2,3,4,5].map(i=>{const b=el("button",null);b.type="button";b.innerHTML=ICON.star;b.dataset.s=i;b.setAttribute("role","radio");b.setAttribute("aria-label",`${i} աստղ`);stars.append(b);return b});
+  const paint=(pre=0)=>sb.forEach(b=>{const n=+b.dataset.s;b.classList.toggle("on",n<=rating);b.classList.toggle("pre",rating<n&&n<=pre);b.setAttribute("aria-checked",n===rating)});
+  stars.onmouseleave=()=>{stars.classList.remove("hov");paint()};
+  sb.forEach(b=>{b.onmouseenter=()=>{stars.classList.add("hov");paint(+b.dataset.s)};b.onclick=()=>{rating=+b.dataset.s;went=true;alt.hidden=true;no.hidden=true;yes.hidden=false;c.classList.add("open");err.textContent="";paint()}});   // աստղ ընտրելուց հետո «չեմ գնացել»-ը անհետանում է
+  const frm=el("div","frm");
+  const fld=(lab,inp,opt)=>{const f=el("div","field"),l=el("label",null,lab);if(opt)l.append(el("span",null," (ցանկության դեպքում)"));f.append(l,inp);return f};
+  const ta=el("textarea","in");ta.rows=2;ta.maxLength=500;ta.placeholder="Գինը, արագությունը, վերաբերմունքը…";
+  const nmi=el("input","in");nmi.maxLength=30;nmi.placeholder="Օր.՝ Արամ";
+  const yes=el("div");yes.style.display="flex";yes.style.flexDirection="column";yes.style.gap="14px";yes.append(fld("Կարծիք",ta,true),fld("Անուն",nmi,true),el("div","mini","Հեռախոսահամարը չի հրապարակվում։ Գնահատականը կտեսնեն այլ վարորդներ։"));
+  const sel=el("select","in");sel.append(new Option("— ընտրեք —",""));Object.entries(REASONS).forEach(([k,v])=>sel.append(new Option(v,k)));
+  const no=el("div");no.style.display="flex";no.style.flexDirection="column";no.style.gap="14px";no.append(fld("Ինչու չգնացիք",sel),el("div","mini","Սա հրապարակային չէ. օգնում է բարելավել առաջարկները։"));no.hidden=true;
+  const err=el("div","err"),act=el("div","act"),ok=el("button","btn primary","Հաստատել");ok.type="button";
+  const alt=el("button","lnk","Չեմ գնացել");alt.type="button";                       // երևում է միայն մինչև աստղ ընտրելը
+  alt.onclick=()=>{went=false;rating=0;paint();yes.hidden=true;no.hidden=false;c.classList.add("open");err.textContent=""};
+  const row=el("div","srow");row.append(stars,alt);rate.append(q,row);
+  act.append(ok);frm.append(yes,no,err,act);c.append(rate,frm);
+  ok.onclick=async()=>{
+    err.textContent="";const body={went};
+    if(went){if(!rating){err.textContent="Ընտրեք աստղերի քանակը։";return}body.rating=rating;body.comment=ta.value.trim();body.display_name=nmi.value.trim()}
+    else{if(!sel.value){err.textContent="Ընտրեք պատճառը։";return}body.reason=sel.value}
+    ok.disabled=true;
+    try{
+      const r=await fetch("/reviews/"+encodeURIComponent(tokOf(x)),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+      if(r.status===201||r.status===200||r.status===409){
+        if(r.status===409){markDone(tokOf(x),{});await init();return}       // այս հայտը արդեն գնահատված է. աստղերը բերում ենք սերվերից
+        const res={went,rating:went?rating:null,comment:went?ta.value.trim():"",display_name:went?nmi.value.trim():""};
+        markDone(tokOf(x),res);c.classList.remove("open");frm.remove();
+        rate.replaceWith(ratedView({...x,done:true,...res}));
+        const st=went?el("span","chip done"):el("span","chip plain","Չեմ գնացել");if(went){st.innerHTML=ICON.check;st.append("Գնահատված")}status.replaceWith(st);
+        c.append(el("div","thanks",r.status===200?"✓ Թարմացվեց ձեր նախորդ գնահատականը այս գարաժին (30 օրում՝ մեկ կարծիք)":went?"✓ Շնորհակալություն, գնահատականը պահվեց":"✓ Շնորհակալություն"));
+        if(r.status===200){const others=[...document.querySelectorAll(".mc")].filter(o=>o!==c);if(others.length)await init()}   // նույն գարաժի մյուս հայտերը նույնպես նոր աստղերն են ցույց տալիս
+        return;
+      }
+      let m="Սխալ "+r.status;try{const j=await r.json();if(typeof j.detail==="string")m=j.detail}catch(e){}err.textContent=m;
+    }catch(e){err.textContent="Սերվերը չպատասխանեց։"}
+    ok.disabled=false;
+  };
+  return c;
+}
+function render(){ // սերվերի տված էջը. կապ չլինելու դեպքում՝ սարքի պահոցից (առանց էջավորման)
+  const box=$$("mineList");box.textContent="";
+  const l=pageItems||[...myReqs()].reverse().slice(0,PER),pages=Math.max(1,Math.ceil(total/PER));
+  if(pageItems===null&&myReqs().length)box.append(el("div","empty","Սերվերը չպատասխանեց. ցույց է տրված սարքում պահվածը։"));
+  if(!l.length){const e=el("div","empty","Հայտեր դեռ չկան։ ");const a=el("a",null,"Հարցրեք օգնականին");a.href="/app";e.append(a," կամ ",Object.assign(el("a",null,"գարաժների ցուցակում"),{href:"/catalog"}),"։");box.append(e)}
+  l.forEach(x=>box.append(mineCard(x)));
+  const fils=$$("fils");fils.hidden=!(counts&&counts.all);
+  if(counts)fils.querySelectorAll("button").forEach(b=>{const k=b.dataset.f;b.classList.toggle("on",k===filter);b.textContent=({all:"Բոլորը",pending:"Սպասում են գնահատման",rated:"Գնահատված"})[k]+` · ${counts[k]}`});
+  if(!l.length&&counts&&counts.all&&filter!=="all")box.replaceChildren(el("div","empty",filter==="pending"?"Չգնահատված հայտեր չկան։":"Գնահատված հայտեր դեռ չկան։"));
+  const u=new URLSearchParams();if(filter!=="all")u.set("f",filter);if(page>1)u.set("page",page);if(PER!==10)u.set("per_page",PER);
+  try{history.replaceState(null,"",location.pathname+(u.toString()?"?"+u:"")+location.hash)}catch(e){}
+  pager($$("pg"),page,pageItems?pages:1,p=>{page=p;init();window.scrollTo({top:0,behavior:"smooth"})});
+}
+async function init(){
+  await syncMine();writeHash();refreshMine();$$("stwarn").hidden=storageOk;render();
+}
+$$("fils").querySelectorAll("button").forEach(b=>b.onclick=()=>{filter=b.dataset.f;page=1;init()});
+init();
+</script>
+</body>
+</html>

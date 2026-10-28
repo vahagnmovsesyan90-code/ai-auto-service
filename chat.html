@@ -3,103 +3,97 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AI Auto Service — Chat</title>
-<link rel="manifest" href="/manifest-app.webmanifest">
-<meta name="theme-color" content="#1d2529">
-<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Auto Service">
+<title>AI Auto Service — Օգնական</title>
+<meta name="theme-color" content="#FFFFFF">
+<meta name="color-scheme" content="light">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Armenian:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/static/ui.css?v=__APP_VERSION__">
 <style>
-:root{--bg:#e9ebec;--panel:#fff;--ink:#1d2529;--mute:#5d6a71;--line:#cfd5d8;--acc:#1f5fbf;--accink:#fff;--me:#1d2529;--meink:#fff;--star:#d99a00;--bad:#c0392b}
-@media(prefers-color-scheme:dark){:root{--bg:#171c1f;--panel:#222a2e;--ink:#eef1f2;--mute:#9aa7ad;--line:#38434a;--acc:#5b9bff;--accink:#0b1a30;--me:#5b9bff;--meink:#0b1a30;--star:#f2b705;--bad:#ff7b6b}}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Noto Sans Armenian","Segoe UI",system-ui,sans-serif;display:flex;flex-direction:column;height:100vh}
-header{padding:14px 18px;border-bottom:1px solid var(--line);background:var(--panel);display:flex;justify-content:space-between;align-items:center}
-header b{border-left:6px solid #f2b705;padding-left:10px}header{flex-wrap:wrap;gap:6px}.hr{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.hr .inst{margin-left:0}
-#mode{font-size:12px;color:var(--mute)}
-.mrow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
-.mrow a{background:var(--acc);color:var(--accink);text-decoration:none;border-radius:14px;padding:4px 14px;font-size:14px}.mrow .done{color:var(--mute);font-size:14px}
-.inst{font:inherit;font-size:13px;cursor:pointer;border:1px solid var(--acc);background:transparent;color:var(--acc);border-radius:14px;padding:3px 12px;margin-left:8px}
-#banner{max-width:760px;width:100%;margin:0 auto;padding:10px 18px 0}
-.rb{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-left:5px solid #f2b705;border-radius:8px;padding:10px 12px;margin-bottom:8px}
-.rb span{flex:1;min-width:180px}.rb a,.rb button{font:inherit;font-size:13px;border-radius:14px;padding:4px 12px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer;text-decoration:none}
-.rb a{background:var(--acc);color:var(--accink);border:0}
-#log{flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:10px;max-width:760px;width:100%;margin:0 auto}
-.m{padding:10px 14px;border-radius:10px;max-width:85%;white-space:pre-wrap}
-.bot{background:var(--panel);border:1px solid var(--line);align-self:flex-start}
-.me{background:var(--me);color:var(--meink);align-self:flex-end}
-.m.has-cards{width:min(100%,560px);max-width:100%}
-.m a.lnk{color:var(--acc);word-break:break-all}
-.cards{display:flex;flex-direction:column;gap:8px;margin-top:10px;white-space:normal}
-.sort{display:flex;gap:6px;align-items:center;font-size:13px;color:var(--mute);margin-top:8px;white-space:normal}
-.sort button{font:inherit;font-size:13px;cursor:pointer;border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:14px;padding:2px 10px}
-.sort button.on{background:var(--acc);color:var(--accink);border-color:var(--acc)}
-.gc{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--bg)}
-.gc .top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
-.gc .nm{font-weight:700}.gc .pr{font-weight:700;white-space:nowrap}
-.gc .meta{font-size:13px;color:var(--mute);margin-top:2px}
-.gc .rt{font-size:14px;margin-top:4px}.gc .rt .st{color:var(--star);font-weight:700}
-.gc .acts{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
-.gc button{font:inherit;font-size:14px;cursor:pointer;border-radius:8px;padding:7px 14px}
-.gc .call{background:var(--acc);color:var(--accink);border:0;font-weight:600}
-.gc .rev,.gc .rt-btn{background:transparent;color:var(--ink);border:1px solid var(--line)}
-.gc .maps[hidden]{display:none}
-.gc .maps{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;font-size:14px}
-.gc .maps a{color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 12px;text-decoration:none}
-.gc .revs{margin-top:8px;font-size:13px;border-top:1px solid var(--line);padding-top:8px}
-.gc .revs div.one{padding:4px 0}.gc .revs .who{color:var(--mute)}
-.hint{display:flex;gap:8px;flex-wrap:wrap;padding:0 18px 8px;max-width:760px;width:100%;margin:0 auto}
-.hint button{font:inherit;font-size:13px;cursor:pointer;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:16px;padding:4px 12px}
-.langhint{max-width:760px;margin:0 auto;width:100%;padding:6px 18px;font-size:13px;color:var(--ink);background:#f2b70533;border-top:1px solid var(--line)}
-.langhint[hidden]{display:none}
-.ver{text-align:center;font-size:11px;color:var(--mute);padding:2px 0 0;background:var(--panel)}
-.bar{display:flex;gap:8px;padding:12px 18px;border-top:1px solid var(--line);background:var(--panel)}
-.bar div{display:flex;gap:8px;max-width:724px;width:100%;margin:0 auto}
-input,textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
-.bar input{flex:1;min-width:0}
-#send{font:inherit;cursor:pointer;background:var(--acc);color:var(--accink);border:0;border-radius:8px;padding:0 18px;font-weight:600}
-#send:disabled{opacity:.5;cursor:default}
-dialog{border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);padding:18px;width:min(92vw,400px)}
-dialog::backdrop{background:rgba(0,0,0,.45)}dialog h3{margin:0}.for{color:var(--mute);font-size:14px;margin:2px 0 6px}
-dialog label{display:block;font-size:13px;color:var(--mute);margin-top:10px}
-dialog input,dialog textarea{width:100%}
-.dlgbtn{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
-.dlgbtn button{font:inherit;cursor:pointer;border-radius:8px;padding:8px 16px;border:1px solid var(--line);background:transparent;color:var(--ink)}
-.dlgbtn .ok{background:var(--acc);color:var(--accink);border:0;font-weight:600}
-#rerr{color:var(--bad);font-size:13px;margin-top:8px}.fine{font-size:12px;color:var(--mute);margin-top:10px}
-:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+body{display:flex;flex-direction:column;height:100%}
+#banner{max-width:1160px;width:100%;margin:0 auto;padding:12px 24px 0}#banner:empty{display:none}
+.rb{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 16px;margin-bottom:8px;font-size:14px;box-shadow:var(--sh1)}
+.rb a{font-weight:600}.rb button{margin-left:auto;cursor:pointer;height:36px;padding:0 12px;border-radius:10px;border:1px solid var(--line3);background:var(--surface);color:var(--ink);font-size:13px;font-weight:600}
+.rb.stwarn{background:var(--starbg);border-color:#F3DDA8;color:var(--warnink)}
+#log{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:32px 24px 8px;display:flex;flex-direction:column;gap:20px;max-width:1160px;width:100%;margin:0 auto;scroll-behavior:smooth}
+#hero{display:flex;flex-direction:column;align-items:center;gap:18px;text-align:center;padding:24px 0 8px;max-width:640px;margin:0 auto}
+#hero .badge{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;background:var(--surface);border:1px solid var(--line);font-size:13px;font-weight:500;color:var(--ink2)}
+#hero .badge::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--okdot);box-shadow:0 0 0 3px #DFF3E8}
+#hero h1{margin:0;font-size:clamp(32px,4.5vw,44px);line-height:1.15;font-weight:700;letter-spacing:-.02em;text-wrap:balance}
+#hero h1 em{font-style:normal;color:var(--acc)}
+#hero p{margin:0;font-size:16px;line-height:1.55;color:var(--mute);max-width:520px}
+.m{display:flex;gap:12px;align-items:flex-start;max-width:100%}
+#hero:not([hidden])+.m.bot{justify-content:center}#hero:not([hidden])+.m.bot .col{flex:0 1 auto}   /* ողջույնը կենտրոնում է, քանի դեռ խոսակցություն չկա */
+.m.me{justify-content:flex-end}
+.m.me .txt{max-width:78%;background:var(--acc);color:#fff;border-radius:16px 16px 4px 16px;padding:12px 16px;font-size:15px;line-height:1.5;word-break:break-word}
+.m.bot .av{flex:0 0 36px;width:36px;height:36px;border-radius:50%;background:var(--soft);color:var(--acc);display:grid;place-items:center}
+.m.bot .av svg{width:18px;height:18px}
+.m.bot .col{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:12px}
+.m.bot .txt{background:var(--surface);border:1px solid var(--line);border-radius:4px 16px 16px 16px;padding:14px 18px;font-size:15px;line-height:1.55;box-shadow:var(--sh1);width:fit-content;max-width:100%;word-break:break-word}
+.m .lnk{font-weight:600}.m .fine{font-size:12px;color:var(--dim)}
+.sort{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--mute);flex-wrap:wrap}
+.sort button{height:36px;padding:0 14px;border-radius:999px;border:1px solid var(--line3);background:var(--surface);color:var(--ink2);font-size:13px;font-weight:500;cursor:pointer}
+.sort button.on{border-color:var(--acc);background:var(--soft);color:var(--acc);font-weight:600}
+.cardbox{display:flex;flex-direction:column;gap:12px}
+.cards{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr))}
+.gc{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px;box-shadow:var(--sh1)}
+.gc .top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.gc .tl{display:flex;flex-direction:column;gap:3px;min-width:0}
+.gc .nm{font-size:15px;font-weight:600;color:var(--ink)}.gc .nm:hover{color:var(--acc)}
+.gc .meta{font-size:13px;color:var(--mute);display:flex;align-items:center;gap:5px}
+.gc .rt{font-size:13px;color:var(--mute);display:flex;align-items:center;gap:5px;flex-wrap:wrap}.gc .rt .st{color:var(--ink);font-weight:600;display:inline-flex;align-items:center;gap:4px}
+.gc .bot{display:flex;justify-content:space-between;align-items:center;gap:8px;padding-top:12px;border-top:1px solid var(--line2)}
+.gc .bot .sv{font-size:13px;color:var(--mute);display:block}.gc .pr{font-size:17px;font-weight:700;letter-spacing:-.01em;display:block}
+.gc .acts{display:flex;gap:4px;flex-wrap:wrap}
+.gc .maps{display:flex;gap:12px;flex-wrap:wrap;font-size:13px}.gc .maps a{font-weight:600}
+.gc .revs{display:flex;flex-direction:column;gap:8px;font-size:13px;border-top:1px solid var(--line2);padding-top:10px}
+.gc .one b{color:var(--star)}.gc .one .who{color:var(--mute)}
+.hint{display:grid;gap:10px;max-width:1160px;width:100%;margin:0 auto;padding:0 24px 14px;grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr))}
+.hint button{display:flex;align-items:center;gap:12px;text-align:left;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:14px;font-weight:500;cursor:pointer;min-height:56px;line-height:1.3}
+.hint button:hover{border-color:var(--line3);box-shadow:var(--sh1)}
+.hint button .ic{flex:0 0 32px;width:32px;height:32px;border-radius:9px;background:var(--bg);color:var(--ink2);display:grid;place-items:center}
+.hint button .ic svg{width:16px;height:16px}
+.bar{padding:0 24px 8px;max-width:1160px;width:100%;margin:0 auto}
+.bar>div{display:flex;align-items:center;gap:8px;padding:6px 6px 6px 18px;border-radius:16px;background:var(--surface);border:1px solid var(--line3);box-shadow:var(--sh2)}
+.bar input{flex:1;min-width:0;height:44px;border:0;outline:0;background:transparent;font-size:15px;color:var(--ink)}
+.bar button{flex:0 0 44px;width:44px;height:44px;border-radius:12px;border:0;background:var(--acc);color:#fff;display:grid;place-items:center;cursor:pointer}
+.bar button:hover{background:var(--acc2)}.bar button svg{width:18px;height:18px}.bar button:disabled{opacity:.6}
+.ver{padding:4px 24px 16px}
+@media(max-width:600px){#log{padding:16px 16px 8px;gap:14px}#hero{text-align:left;align-items:flex-start;padding-top:8px}#hero h1{font-size:32px}.m.me .txt{max-width:84%}.m.bot .av{flex-basis:28px;width:28px;height:28px}.m.bot .txt{padding:12px 14px;font-size:14px}
+  .hint{display:flex;overflow-x:auto;padding:0 16px 10px}.hint button{flex:0 0 auto;min-height:44px;border-radius:999px;padding:0 14px;white-space:nowrap;font-size:13px}.hint button .ic{display:none}.bar{padding:0 16px 8px}.ver{padding-bottom:8px}#banner{padding:10px 16px 0}}
 </style>
 </head>
 <body>
-<header><b>AI Auto Service</b><span class="hr"><span id="mode"></span><button id="mineBtn" class="inst" hidden>Իմ հայտերը</button><button id="newChat" class="inst">Նոր խոսակցություն</button><button id="install" class="inst" hidden>Տեղադրել հավելվածը</button></span></header>
+<header class="top"><div class="wrap">
+  <a class="brand" href="/app"><span class="logo" aria-hidden="true"><svg class="" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span><span class="ttl"><b>AI Auto Service</b><span class="sub">Ձեր ավտոսերվիսի օգնականը</span></span></a>
+  <nav class="hr" aria-label="Հիմնական"><a id="homeBtn" class="inst on" href="/app"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span class="lbl">Օգնական</span></a><a id="mineBtn" class="inst" href="/my"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6M9 16h6"/></svg><span class="lbl">Իմ հայտերը</span></a><a id="allBtn" class="inst" href="/catalog"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21V8l9-5 9 5v13"/><path d="M7 21v-8h10v8"/><path d="M7 17h10"/></svg><span class="lbl">Գարաժներ</span></a><a id="appBtn" class="inst" href="/download"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg><span class="lbl">Հավելված</span></a></nav>
+  <span class="hr2"><span id="mode"></span><button id="newChat" class="hbtn" aria-label="Նոր խոսակցություն"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span class="lbl">Նոր խոսակցություն</span></button></span>
+</div></header>
 <div id="banner"></div>
-<div id="log"></div>
+<div id="log">
+  <div id="hero"><span class="badge">Օգնականը պատրաստ է</span><h1>Ի՞նչ է պատահել <em>մեքենային</em>։</h1><p>Նկարագրեք խնդիրը սովորական բառերով, և օգնականը կգտնի համապատասխան ծառայությունն ու մոտակա գարաժը։</p></div>
+</div>
 <div class="hint" id="hint"></div>
-<div id="lang" class="langhint" hidden>Խնդրում ենք գրել <b>հայերեն տառերով</b>, օրինակ՝ «արգելակելիս ճռռոց է լսվում»։ Այդպես ես ավելի լավ կհասկանամ։ Մակնիշները (BMW, Toyota) կարող եք գրել լատինատառ։</div>
-<div class="ver">v__APP_VERSION__</div>
-<div class="bar"><div><input id="in" placeholder="Գրեք հայերեն տառերով, օր.՝ արգելակելիս ճռռոց է լսվում" autocomplete="off"><button id="send">Ուղարկել</button></div></div>
+<div class="bar"><div><label class="sr-only" for="in">Նկարագրեք խնդիրը</label><input id="in" placeholder="Նկարագրեք խնդիրը, օր.՝ արգելակելիս ճռռոց է լսվում" autocomplete="off"><button id="send" aria-label="Ուղարկել"><svg class="" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button></div></div>
+<div class="ver">Օգնականը կարող է սխալվել. գինը և ժամը ճշտեք գարաժի հետ։ · v__APP_VERSION__</div>
 
-<dialog id="mine">
-  <h3>Իմ հայտերը</h3>
-  <div class="for">Այցից հետո այստեղից կարող եք գնահատել գարաժը։</div>
-  <div id="mineList"></div>
-  <div class="dlgbtn"><button id="mineClose">Փակել</button></div>
-</dialog>
-
-<dialog id="dlg">
-  <h3>Թողնել հայտ</h3>
-  <div class="for" id="dlgFor"></div>
-  <label>Անուն<input id="rn" maxlength="100" autocomplete="name"></label>
-  <label>Հեռախոս<input id="rp" type="tel" maxlength="25" placeholder="+374 ..." autocomplete="tel"></label>
-  <label>Նշում (ցանկության դեպքում)<textarea id="rm" rows="2" maxlength="500" placeholder="Օր.՝ ցանկալի ժամը, մեքենայի մակնիշը"></textarea></label>
-  <div id="rerr" role="alert"></div>
-  <div class="fine">Ձեր տվյալները կստանա միայն այս գարաժը՝ ձեզ զանգահարելու համար։</div>
-  <div class="dlgbtn"><button id="rcancel">Փակել</button><button class="ok" id="rsend">Ուղարկել</button></div>
+<dialog id="dlg" aria-labelledby="dlgTitle">
+  <div class="dhead"><div><h3 id="dlgTitle">Թողնել հայտ</h3><p class="dsub">Գարաժը կկապվի ձեզ հետ՝ ժամը և մանրամասները ճշտելու համար։</p></div><button type="button" class="x" id="rx" aria-label="Փակել"><svg class="" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+  <div class="sum"><div><span class="lab">Ձեր հայտը</span><strong id="dlgFor"></strong></div><div class="pr" id="dlgPrice"></div></div>
+  <div class="body">
+    <div class="field"><label for="rn">Անուն</label><input class="in" id="rn" maxlength="100" autocomplete="name" placeholder="Ձեր անունը"></div>
+    <div class="field"><label for="rp">Հեռախոս</label><input class="in" id="rp" type="tel" maxlength="25" placeholder="+374 …" autocomplete="tel"></div>
+    <div class="field"><label for="rm">Նշում <span>(ցանկության դեպքում)</span></label><textarea class="in" id="rm" rows="3" maxlength="500" placeholder="Օր.՝ ցանկալի ժամը, մեքենայի մակնիշը"></textarea></div>
+    <div class="err" id="rerr" role="alert"></div>
+    <p class="fine">Ձեր տվյալները կստանա միայն այս գարաժը՝ ձեզ զանգահարելու համար։</p>
+  </div>
+  <div class="dlgbtn"><button type="button" class="btn" id="rcancel">Փակել</button><button type="button" class="btn primary" id="rsend">Ուղարկել հայտը</button></div>
 </dialog>
 
 <script>
 const log=document.getElementById("log"),inp=document.getElementById("in"),btn=document.getElementById("send"),modeEl=document.getElementById("mode");
 const dlg=document.getElementById("dlg"),$$=id=>document.getElementById(id);
+const ICON={spark:'<svg class="" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg>',pin:'<svg class="pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>',star:'<svg class="star" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3 6.1 20.6l1.3-6.6L2.5 9.4l6.6-.8z"/></svg>',target:'<svg class="" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg>',snow:'<svg class="" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9 4.9 19.1"/></svg>',clock:'<svg class="" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>'};   // դիզայնի պատկերակները (հաստատուն տողեր, օգտատիրոջ տվյալ չկա)
+const el=(tag,cls,text)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e};
 const convo=[];let target=null;
 const LOG_KEY="chat_state_v1",TTL=7*24*3600*1000;
 let items=[];   // խոսակցության տեսանելի հաղորդագրությունները (պահվում են սարքում, որպեսզի հավելվածը փակելիս չջնջվեն)
@@ -117,20 +111,19 @@ function ratingLine(r){
   return `★ ${r.avg.toFixed(1)} · ${r.count} կարծիք`+(r.count<5?" (քիչ կարծիք)":"");
 }
 function card(c){
-  const d=document.createElement("div");d.className="gc";
-  const top=document.createElement("div");top.className="top";
-  const nm=document.createElement("span");nm.className="nm";nm.textContent=c.name;
-  const pr=document.createElement("span");pr.className="pr";pr.textContent=money(c.price_amd);
-  top.append(nm,pr);
-  const meta=document.createElement("div");meta.className="meta";
-  meta.textContent=`${c.address} · ${c.open_now?"բաց է հիմա":"հիմա փակ է"} · ~${c.duration_min} ր`;
-  const rt=document.createElement("div");rt.className="rt";
-  if(c.rating&&c.rating.count){const st=document.createElement("span");st.className="st";st.textContent="★ "+c.rating.avg.toFixed(1);
-    rt.append(st,document.createTextNode(` · ${c.rating.count} կարծիք`+(c.rating.count<5?" (քիչ կարծիք)":"")))}
+  const d=el("div","gc"),top=el("div","top"),tl=el("div","tl");
+  const nm=el("a","nm",c.name);nm.href="/catalog/"+c.garage_id;
+  const meta=el("span","meta");meta.innerHTML=ICON.pin;meta.append(c.address);tl.append(nm,meta);
+  const op=el("span","chip "+(c.open_now?"open":"closed"),c.open_now?"Բաց է հիմա":"Հիմա փակ է");
+  top.append(tl,op);
+  const rt=el("div","rt");
+  if(c.rating&&c.rating.count){const st=el("span","st");st.innerHTML=ICON.star;st.append(c.rating.avg.toFixed(1));
+    rt.append(st,document.createTextNode(`· ${c.rating.count} կարծիք`+(c.rating.count<5?" (քիչ կարծիք)":"")))}
   else rt.textContent=ratingLine(null);
-  const acts=document.createElement("div");acts.className="acts";
-  const call=document.createElement("button");call.className="call";call.textContent="Թողնել հայտ";call.onclick=()=>openCall(c);
-  const rev=document.createElement("button");rev.className="rev";rev.textContent="Կարծիքներ";
+  const bot=el("div","bot"),pd=el("div");pd.append(el("span","sv",`${c.service_name} · ~${c.duration_min} ր`),el("strong","pr",money(c.price_amd)));
+  const call=el("button","btn primary sm","Թողնել հայտ");call.type="button";call.onclick=()=>openCall(c);bot.append(pd,call);
+  const acts=el("div","acts");
+  const rev=el("button","btn ghost","Կարծիքներ");rev.type="button";
   const revs=document.createElement("div");revs.className="revs";revs.hidden=true;
   rev.onclick=async()=>{
     if(!revs.hidden){revs.hidden=true;return}
@@ -143,10 +136,10 @@ function card(c){
         o.append(s,w);if(x.comment){const t=document.createElement("div");t.textContent=x.comment;o.append(t)}revs.append(o)})
     }catch(e){revs.textContent="Չհաջողվեց բեռնել։"}
   };
-  acts.append(call,rev);
+  acts.append(rev);
   const maps=document.createElement("div");maps.className="maps";maps.hidden=true;
   if(typeof c.lat==="number"&&typeof c.lng==="number"){   // կոճակը միայն հաստատված կետ ունեցող գարաժի համար
-    const rb=document.createElement("button");rb.className="rt-btn";rb.textContent="Երթուղի";rb.setAttribute("aria-expanded","false");
+    const rb=el("button","btn ghost","Երթուղի");rb.type="button";rb.setAttribute("aria-expanded","false");
     const ll=c.lat.toFixed(6)+","+c.lng.toFixed(6);
     [["Google Maps",`https://www.google.com/maps/dir/?api=1&destination=${ll}&travelmode=driving`],
      ["Yandex Maps",`https://yandex.ru/maps/?rtext=~${ll}&rtt=auto`],
@@ -155,7 +148,7 @@ function card(c){
     rb.onclick=()=>{maps.hidden=!maps.hidden;rb.setAttribute("aria-expanded",String(!maps.hidden))};
     acts.append(rb);
   }
-  d.append(top,meta,rt,acts,maps,revs);return d;
+  d.append(top,rt,bot,acts,maps,revs);return d;
 }
 function renderCards(box,cards,mode){
   box.textContent="";
@@ -167,22 +160,28 @@ function renderCards(box,cards,mode){
   const list=[...cards].sort(mode==="rating"?(a,b)=>((b.rating.score??0)-(a.rating.score??0))||(a.price_amd-b.price_amd):(a,b)=>a.price_amd-b.price_amd);
   const wrap=document.createElement("div");wrap.className="cards";list.forEach(c=>wrap.append(card(c)));box.append(wrap);
 }
+function fmt(el,text){ // թեթև ձևավորում. **թավ** -> <b>, «- » ցուցակ -> «• »։ Միայն text node-եր, HTML չի ներարկվում
+  String(text).replace(/^[-*] /gm,"• ").split(/\*\*(.+?)\*\*/g).forEach((part,i)=>{
+    if(!part)return;if(i%2){const b=document.createElement("b");b.textContent=part;el.append(b)}else el.append(document.createTextNode(part))});
+}
 function add(text,cls,cards,link,save=true){
-  const d=document.createElement("div");d.className="m "+cls;
-  const t=document.createElement("div");t.textContent=text;d.append(t);
+  const d=el("div","m "+cls),t=el("div","txt");fmt(t,text);
+  let col=d;
+  if(cls==="bot"){const av=el("span","av");av.setAttribute("aria-hidden","true");av.innerHTML=ICON.spark;col=el("div","col");d.append(av,col)}   // օգնականի avatar + սյունակ
+  col.append(t);
   if(link){
-    const p=document.createElement("div");p.style.marginTop="8px";p.append("Այցից հետո գնահատեք գարաժը այս հղումով՝ ");
-    const a=document.createElement("a");a.className="lnk";a.href=link.url;a.textContent=location.origin+link.url;a.target="_blank";a.rel="noopener";p.append(a);
-    const n=document.createElement("div");n.className="fine";n.textContent="Հղումը միշտ կգտնեք վերևի «Իմ հայտերը» բաժնում։";d.append(p,n);
+    const p=el("div");p.style.marginTop="8px";p.append("Այցից հետո գնահատեք գարաժը աստղերով՝ ");
+    const a=el("a","lnk","Իմ հայտերը → Գնահատել");a.href="/my";a.onclick=e=>{e.preventDefault();goMine()};p.append(a);
+    t.append(p,el("div","fine","Հայտը միշտ կգտնեք վերևի «Իմ հայտերը» բաժնում։"));
   }
-  if(cards&&cards.length){d.classList.add("has-cards");const box=document.createElement("div");d.append(box);renderCards(box,cards,"price")}
+  if(cards&&cards.length){d.classList.add("has-cards");const box=el("div","cardbox");col.append(box);renderCards(box,cards,"price")}
   log.appendChild(d);log.scrollTop=log.scrollHeight;
   if(save){items.push({cls,text,cards:cards&&cards.length?cards:undefined,link:link||undefined});persist()}
   return d;
 }
 async function send(text){
   text=(text||inp.value).trim();if(!text||btn.disabled)return;
-  inp.value="";$$("lang").hidden=true;$$("hint").style.display="none";
+  inp.value="";$$("hint").style.display="none";$$("hero").hidden=true;
   add(text,"me");convo.push({role:"user",content:text});persist();
   btn.disabled=true;const wait=add("…","bot",null,null,false);
   try{
@@ -191,15 +190,17 @@ async function send(text){
     if(!r.ok)throw new Error("HTTP "+r.status);
     const d=await r.json();wait.remove();add(d.reply,"bot",d.cards);convo.push({role:"assistant",content:d.reply});persist();
     modeEl.textContent=d.mode==="ai"?"AI ռեժիմ":"Պարզ ռեժիմ (առանց AI)";
-  }catch(e){wait.textContent=String(e.message)==="429"?"Չափազանց շատ հարցումներ, փորձեք մի փոքր հետո։":"Սխալ՝ սերվերը չպատասխանեց։ Փորձեք նորից։";convo.pop();items.pop();persist()}
+  }catch(e){wait.querySelector(".txt").textContent=String(e.message)==="429"?"Չափազանց շատ հարցումներ, փորձեք մի փոքր հետո։":"Սխալ՝ սերվերը չպատասխանեց։ Փորձեք նորից։";convo.pop();items.pop();persist()}
   btn.disabled=false;inp.focus();log.scrollTop=log.scrollHeight;
 }
 
 // ---- «Թողնել հայտ» ----
 function openCall(c){
-  target=c;$$("rerr").textContent="";$$("dlgFor").textContent=`${c.name} · ${c.service_name}`;dlg.showModal();$$("rn").focus();
+  target=c;$$("rerr").textContent="";$$("dlgFor").textContent=`${c.name} · ${c.service_name}`;
+  const pr=$$("dlgPrice");pr.textContent="";if(c.price_amd!=null){pr.append(el("strong",null,money(c.price_amd)));if(c.duration_min)pr.append(el("span",null,`~${c.duration_min} րոպե`))}
+  dlg.showModal();$$("rn").focus();
 }
-$$("rcancel").onclick=()=>dlg.close();
+$$("rcancel").onclick=()=>dlg.close();$$("rx").onclick=()=>dlg.close();
 $$("rsend").onclick=async()=>{
   const body={name:$$("rn").value.trim(),phone:$$("rp").value.trim(),message:$$("rm").value.trim(),garage_id:target.garage_id,service_id:target.service_id};
   if(!body.name||body.phone.length<6){$$("rerr").textContent="Լրացրեք անունը և հեռախոսը։";return}
@@ -209,10 +210,10 @@ $$("rsend").onclick=async()=>{
     if(r.status===429){$$("rerr").textContent="Չափազանց շատ հայտեր, փորձեք ավելի ուշ։";return}
     if(!r.ok){$$("rerr").textContent="Ստուգեք հեռախոսի համարը (թվեր, +, -, փակագծեր)։";return}
     const d=await r.json();dlg.close();["rn","rp","rm"].forEach(i=>$$(i).value="");
-    add(`Հայտը ուղարկված է «${d.garage||target.name}»-ին։ Նրանք կզանգահարեն ձեզ։`,"bot",null,d.review_url?{url:d.review_url}:null);
-    if(d.review_url){
-      const l=store.get("pending_reviews",[]);l.push({url:d.review_url,garage:d.garage||target.name,ts:Date.now(),done:false});
-      store.set("pending_reviews",l.slice(-20));refreshMine();writeHash();
+    add(`Հայտը ուղարկված է «${d.garage||target.name}»-ին։ Նրանք կզանգահարեն ձեզ։`,"bot",null,d.review_token?{tok:d.review_token}:null);
+    if(d.review_token){
+      const l=store.get("pending_reviews",[]);l.push({tok:d.review_token,garage:d.garage||target.name,ts:Date.now(),done:false});
+      store.set("pending_reviews",l.slice(-200));refreshMine();writeHash();
       if(!storageOk)warnStorage();
     }
     log.scrollTop=log.scrollHeight;
@@ -232,89 +233,59 @@ function banner(){
   store.get("pending_reviews",[]).filter(x=>!x.done&&!x.dismissed&&Date.now()-x.ts>=after).slice(0,2).forEach(x=>{
     const d=document.createElement("div");d.className="rb";
     const s=document.createElement("span");s.textContent=`Դուք հայտ թողեցիք «${x.garage}»-ին։ Գնացի՞ք։ Կիսվեք փորձով։`;
-    const a=document.createElement("a");a.href=x.url;a.textContent="Գնահատել";
-    const c=document.createElement("button");c.textContent="Փակել";c.onclick=()=>{store.set("pending_reviews",store.get("pending_reviews",[]).map(y=>y.url===x.url?{...y,dismissed:true}:y));banner()};
+    const a=document.createElement("a");a.href="/my";a.textContent="Գնահատել";a.onclick=e=>{e.preventDefault();goMine()};
+    const c=document.createElement("button");c.textContent="Փակել";c.onclick=()=>{store.set("pending_reviews",store.get("pending_reviews",[]).map(y=>tokOf(y)===tokOf(x)?{...y,dismissed:true}:y));banner()};
     d.append(s,a,c);box.append(d);
   });
 }
 
 // ---- Իմ հայտերը ----
 const mineBtn=$$("mineBtn");
+const goMine=()=>{location.href="/my"+location.hash};   // հասցեագոտու #h= պահուստը տանում ենք էջին (եթե պահոցը արգելված է)
+mineBtn.onclick=e=>{e.preventDefault();goMine()};
 function myReqs(){const cut=Date.now()-90*86400000;return store.get("pending_reviews",[]).filter(x=>x.ts>cut)}
-const tokOf=u=>String(u).split("/").filter(Boolean).pop();
+const tokOf=x=>x.tok||String(x.url||"").split("/").filter(Boolean).pop();   // հին պահոցի գրառումները url-ով են (/review/<token>)
 function hashTokens(){const m=location.hash.match(/[#&]h=([A-Za-z0-9_,-]*)/);return m?m[1].split(",").filter(Boolean):[]}
 function writeHash(){ // հղումների պահուստը հասցեագոտում. refresh-ից հետո մնում է, նույնիսկ եթե դիտարկիչը արգելում է պահոցը
-  const t=myReqs().filter(x=>!x.done).map(x=>tokOf(x.url)).slice(-5);
+  const t=myReqs().filter(x=>!x.done).map(x=>tokOf(x)).slice(-5);
   try{window.history.replaceState(null,"",location.pathname+location.search+(t.length?"#h="+t.join(","):""))}catch(e){}
 }
 async function syncMine(){ // ստուգում ենք սերվերում. անվավեր (գոյություն չունեցող) հայտերը հանվում են ցուցակից
-  const l=store.get("pending_reviews",[]),byTok=new Map(l.map(x=>[tokOf(x.url),x]));
-  const toks=[...new Set([...l.map(x=>tokOf(x.url)),...hashTokens()])].slice(0,20);
+  const l=store.get("pending_reviews",[]),byTok=new Map(l.map(x=>[tokOf(x),x]));
+  const toks=[...new Set([...l.map(x=>tokOf(x)),...hashTokens()])].slice(0,200);
   if(!toks.length)return;
   try{
-    const r=await fetch("/my-requests/check",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({tokens:toks})});
+    const r=await fetch("/my-requests/check",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({tokens:toks,page:1,per_page:50})});
     if(!r.ok)return;                                   // սխալի կամ կապի բացակայության դեպքում ոչինչ չենք ջնջում
-    const ok=new Map((await r.json()).requests.map(x=>[x.token,x]));
+    const d=await r.json(),valid=new Map(d.valid.map(v=>[v.token,v])),info=new Map(d.requests.map(x=>[x.token,x]));
     const out=[];
     for(const t of toks){
-      const info=ok.get(t);if(!info)continue;          // սերվերը չգիտի այս հղումը -> օգտատիրոջը ցույց չենք տալիս
-      const old=byTok.get(t)||{url:"/review/"+t,ts:Date.now()};
-      out.push({...old,garage:info.garage||old.garage||"Գարաժ",done:!!info.already_reviewed||!!old.done});
+      const v=valid.get(t);if(!v)continue;             // սերվերը չգիտի այս հայտը -> օգտատիրոջը ցույց չենք տալիս
+      const old=byTok.get(t)||{ts:Date.now()},i=info.get(t)||{};
+      out.push({...old,tok:t,garage:i.garage||old.garage||"Գարաժ",service:i.service||old.service||"",done:v.done||!!old.done});
     }
     store.set("pending_reviews",out);refreshMine();writeHash();
   }catch(e){}
 }
-function refreshMine(){const l=myReqs();mineBtn.hidden=!l.length;const n=l.filter(x=>!x.done).length;mineBtn.textContent="Իմ հայտերը"+(n?` (${n})`:"")}
-mineBtn.onclick=async()=>{
-  await syncMine();                                    // ամեն բացելիս թարմացնում ենք. անվավերները չեն երևա
-  if(!myReqs().length)return;
-  const box=$$("mineList");box.textContent="";
-  [...myReqs()].reverse().forEach(x=>{
-    const r=document.createElement("div");r.className="mrow";
-    const s=document.createElement("span");s.textContent=`${x.garage} · ${new Date(x.ts).toLocaleDateString("en-GB")}`;r.append(s);
-    if(x.done){const k=document.createElement("span");k.className="done";k.textContent="✓ Գնահատված";r.append(k)}
-    else{const a=document.createElement("a");a.href=x.url;a.textContent="Գնահատել";r.append(a)}
-    box.append(r);
-  });
-  $$("mine").showModal();
-};
-$$("mineClose").onclick=()=>$$("mine").close();
-let armedNew=false;
-$$("newChat").onclick=e=>{   // «Իմ հայտերը»-ը չի ջնջվում, միայն խոսակցությունը
-  if(items.length&&!armedNew){armedNew=true;e.target.textContent="Հաստատե՞լ";setTimeout(()=>{armedNew=false;e.target.textContent="Նոր խոսակցություն"},3500);return}
-  store.del(LOG_KEY);location.reload();
-};
+function refreshMine(){const n=myReqs().filter(x=>!x.done).length;mineBtn.querySelector(".lbl").textContent="Իմ հայտերը"+(n?` (${n})`:"")}   // կոճակը միշտ կա, քանակը՝ չգնահատվածները
+$$("newChat").onclick=()=>{store.del(LOG_KEY);location.reload()};   // միանգամից, առանց հաստատման. «Իմ հայտերը»-ը չի ջնջվում
 function restore(){   // վերականգնում ենք վերջին խոսակցությունը (մինչև 7 օր)
   const st=store.get(LOG_KEY,null);
   if(!st||!st.items||!st.items.length||Date.now()-st.ts>TTL)return false;
   convo.push(...(st.history||[]));items=st.items;
   let orphan=null;   // էջը թարմացվել է պատասխանի սպասման ժամանակ. վերջին հարցը պատասխան չունի
   if(items.length&&items[items.length-1].cls==="me"){orphan=items.pop().text;if(convo.length&&convo[convo.length-1].role==="user")convo.pop();persist()}
-  st.items.forEach(i=>add(i.text,i.cls,i.cards,i.link,false));$$("hint").style.display="none";
+  st.items.forEach(i=>add(i.text,i.cls,i.cards,i.link,false));$$("hint").style.display="none";$$("hero").hidden=true;
   if(orphan){inp.value=orphan;add("Նախորդ հարցի պատասխանը չստացվեց (էջը թարմացվել է)։ Հարցը վերադարձվել է մուտքի դաշտ՝ ուղարկեք նորից։","bot",null,null,false)}
   return true;
 }
-if(!restore())add("Բարև։ Նկարագրեք մեքենայի խնդիրը հայերեն տառերով, և ես կգտնեմ համապատասխան ծառայությունը ու գարաժը։","bot",null,null,false);
-["Արգելակելիս ճռռոց է լսվում","Օդորակիչը չի սառեցնում","Ո՞ր գարաժն է հիմա բաց"].forEach(t=>{const b=document.createElement("button");b.textContent=t;b.onclick=()=>send(t);$$("hint").appendChild(b)});
-const nonArm=t=>{const arm=(t.match(/[\u0531-\u0556\u0561-\u0587]/g)||[]).length,oth=(t.match(/[A-Za-z\u0400-\u04FF]/g)||[]).length;return oth>=3&&oth>arm};
-inp.addEventListener("input",()=>{$$("lang").hidden=!nonArm(inp.value)});   // ազնիվ հուշում, առանց արգելելու (մակնիշները լատինատառ են)
+if(!restore())add("Բարև։ Նկարագրեք մեքենայի խնդիրը, և ես կգտնեմ համապատասխան ծառայությունը ու գարաժը։","bot",null,null,false);
+function setHints(list){const h=$$("hint");h.textContent="";list.forEach((t,i)=>{const b=el("button",null);b.type="button";const ic=el("span","ic");ic.innerHTML=[ICON.target,ICON.snow,ICON.clock][i%3];b.append(ic,document.createTextNode(t));b.onclick=()=>send(t);h.appendChild(b)})}
+setHints(["Արգելակելիս ճռռոց է լսվում","Օդորակիչը չի սառեցնում","Ո՞ր գարաժն է հիմա բաց"]);   // նախ՝ լռելյայնները, հետո՝ ամենաշատ հարցվածները սերվերից
+fetch("/popular-questions").then(r=>r.ok?r.json():null).then(l=>{if(l&&l.length)setHints(l.map(x=>x.text))}).catch(()=>{});
 btn.onclick=()=>send();inp.addEventListener("keydown",e=>{if(e.key==="Enter")send()});
 banner();refreshMine();syncMine();if(!storageOk)warnStorage();
 
-// ---- Տեղադրվող հավելված (PWA) ----
-if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));
-let deferredInstall=null;const inst=$$("install");
-addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e;inst.hidden=false});
-inst.onclick=async()=>{if(!deferredInstall)return;deferredInstall.prompt();try{await deferredInstall.userChoice}catch(e){}deferredInstall=null;inst.hidden=true};
-addEventListener("appinstalled",()=>{inst.hidden=true});
-(function iosHint(){ // iOS-ում «Տեղադրել» կոճակ չկա. ցույց ենք տալիս քայլերը
-  const ios=/iPad|iPhone|iPod/.test(navigator.userAgent),standalone=navigator.standalone||matchMedia("(display-mode: standalone)").matches;
-  if(!ios||standalone||store.get("ios_hint_dismissed",false))return;
-  const d=document.createElement("div");d.className="rb";
-  const s=document.createElement("span");s.textContent="Տեղադրեք հավելվածը. Safari-ում սեղմեք «Share» (կիսվել), ապա «Add to Home Screen»։";
-  const c=document.createElement("button");c.textContent="Փակել";c.onclick=()=>{store.set("ios_hint_dismissed",true);d.remove()};
-  d.append(s,c);$$("banner").append(d);
-})();
 </script>
 </body>
 </html>
